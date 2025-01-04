@@ -1,0 +1,42 @@
+cabal-version:      3.0
+name:               eurekaprom-io
+version:            0.1.0
+synopsis:           Interface to the EurekaPROM in IO mode
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Edsko de Vries
+maintainer:         edsko@well-typed.com
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common lang
+  build-depends:    base >= 4.16 && < 5
+  default-language: GHC2021
+
+  ghc-options:
+      -Wall
+      -Wprepositive-qualified-module
+      -Wunused-packages
+
+library
+  import:         lang
+  hs-source-dirs: src
+
+  exposed-modules:
+      EurekaPROM.IO
+
+  build-depends:
+      alsa-seq >= 0.6 && < 0.7
+
+executable eurekaprom-io
+  import:           lang
+  main-is:          Main.hs
+  hs-source-dirs:   app
+  build-depends:    eurekaprom-io
+
+test-suite eurekaprom-io-test
+  import:           lang
+  type:             exitcode-stdio-1.0
+  main-is:          Main.hs
+  hs-source-dirs:   test
+  build-depends:    eurekaprom-io
