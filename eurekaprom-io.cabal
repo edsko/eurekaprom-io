@@ -13,6 +13,10 @@ common lang
   build-depends:    base >= 4.16 && < 5
   default-language: GHC2021
 
+  default-extensions:
+      DerivingStrategies
+      DisambiguateRecordFields
+
   ghc-options:
       -Wall
       -Wprepositive-qualified-module
@@ -24,19 +28,29 @@ library
 
   exposed-modules:
       EurekaPROM.IO
+      EurekaPROM.IO.Alsa
+      EurekaPROM.IO.Discovery
 
   build-depends:
       alsa-seq >= 0.6 && < 0.7
 
-executable eurekaprom-io
-  import:           lang
-  main-is:          Main.hs
-  hs-source-dirs:   app
-  build-depends:    eurekaprom-io
+executable eurekaprom-io-listen
+  import:         lang
+  main-is:        Listen.hs
+  ghc-options:    -main-is Listen
+  hs-source-dirs: listen
+  build-depends:  eurekaprom-io
+
+  other-modules:
+      Listen.Cmdline
+
+  build-depends:
+      optparse-applicative >= 0.18 && < 0.19
 
 test-suite eurekaprom-io-test
-  import:           lang
-  type:             exitcode-stdio-1.0
-  main-is:          Main.hs
-  hs-source-dirs:   test
-  build-depends:    eurekaprom-io
+  import:         lang
+  type:           exitcode-stdio-1.0
+  main-is:        Test.hs
+  ghc-options:    -main-is Test
+  hs-source-dirs: test
+  build-depends:  eurekaprom-io

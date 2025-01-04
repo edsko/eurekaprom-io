@@ -7,5 +7,11 @@ the device to control the LEDs, and one turn inputs from the device into
 programmable keyboard and/or mouse sequences, so that it can be used to control
 general applications.
 
+## System requirements
+
 Requires [`alsa-seq`][https://hackage.haskell.org/package/alsa-seq], which in
 turn requires the ALSA dev system libraries; see https://wiki.haskell.org/ALSA.
+
+## References
+
+* [ALSA documentation](https://www.alsa-project.org/alsa-doc/alsa-lib/seq.html)
