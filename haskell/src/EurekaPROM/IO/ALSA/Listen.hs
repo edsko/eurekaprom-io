@@ -3,6 +3,7 @@ module EurekaPROM.IO.ALSA.Listen (
   ) where
 
 import Control.Monad
+import Control.Monad.IO.Class
 
 import Sound.ALSA.Sequencer.Event     qualified as Event
 import Sound.ALSA.Sequencer.Subscribe qualified as Subscribe
@@ -15,15 +16,21 @@ import EurekaPROM.IO.ALSA.Discovery qualified as Discovery
 -- | Process incoming events
 --
 -- This never returns.
-listen :: ALSA.Handle -> Discovery.Port -> (MIDI.Message -> IO ()) -> IO a
+listen ::
+     MonadIO m
+  => ALSA.Handle
+  -> Discovery.Port
+  -> (MIDI.Message -> m ())
+  -> m a
 listen h port k = do
-    subscription <- Subscribe.malloc
-    Subscribe.setSender subscription (Discovery.portAddress port)
-    Subscribe.setDest subscription (Handle.address h)
-    Subscribe.subscribePort (Handle.alsa h) subscription
+    liftIO $ do
+      subscription <- Subscribe.malloc
+      Subscribe.setSender subscription (Discovery.portAddress port)
+      Subscribe.setDest subscription (Handle.address h)
+      Subscribe.subscribePort (Handle.alsa h) subscription
 
     forever $ do
-      event <- Event.input (Handle.alsa h)
+      event <- liftIO $ Event.input (Handle.alsa h)
       case MIDI.fromALSA event of
         Just msg -> k msg
         Nothing  -> return () -- TODO: warn?

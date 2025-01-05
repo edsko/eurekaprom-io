@@ -60,11 +60,13 @@ executable eurekaprom-io-listen
   build-depends:  eurekaprom-io
 
   other-modules:
+      Listen.Adaptor
       Listen.Cmdline
 
   build-depends:
     , containers           >= 0.6  && < 0.7
     , evdev                >= 2.3  && < 2.4
+    , mtl                  >= 2.2  && < 2.3
     , optparse-applicative >= 0.18 && < 0.19
 
 test-suite eurekaprom-io-test

@@ -1,16 +1,19 @@
 module Listen (main) where
 
+import Control.Monad.IO.Class
 import Data.Map (Map)
 import Data.Map qualified as Map
 import System.IO
 
 import Evdev.Codes  qualified as Codes
-import Evdev.Uinput qualified as Uinput
+import Evdev.Uinput qualified as Uinput ()
 
 import EurekaPROM.IO.ALSA qualified as ALSA
 import EurekaPROM.IO.App  qualified as App
 import EurekaPROM.IO.MIDI qualified as MIDI
 
+import Listen.Adaptor (Adaptor)
+import Listen.Adaptor qualified as Adaptor
 import Listen.Cmdline
 
 {-------------------------------------------------------------------------------
@@ -31,45 +34,47 @@ main = ALSA.init $ \h -> do
 -------------------------------------------------------------------------------}
 
 listen :: ALSA.Handle -> ALSA.Port -> IO ()
-listen h port = do
-    uinput <- Uinput.newDevice "eurekaprom-io-listen" deviceOpts
-    ALSA.listen h port $ processMsg uinput
-  where
-    deviceOpts :: Uinput.DeviceOpts
-    deviceOpts = Uinput.defaultDeviceOpts{
-          -- NOTE: [KeyA .. KeyZ] does /not/ work (poor 'Enum' instance)
-          Uinput.keys = [Codes.KeyE, Codes.KeyD, Codes.KeyS]
-        }
+listen h port = Adaptor.run $ ALSA.listen h port processMsg
 
-processMsg :: Uinput.Device -> MIDI.Message -> IO ()
-processMsg uinput msg = do
+processMsg :: MIDI.Message -> Adaptor ()
+processMsg msg = do
     case MIDI.msgBody msg of
       -- Note-on
       MIDI.MsgNote MIDI.Note{notePitch, noteVelocity}
         | noteVelocity == 100
         , Just events <- Map.lookup notePitch noteOnMap
-        -> Uinput.writeBatch uinput events
+        -> do Adaptor.writeInputEvents events
+
+      -- Note-off (currently ignored)
       MIDI.MsgNote MIDI.Note{noteVelocity}
         | noteVelocity == 0
-        -> return () -- Ignore note-off messages
+        -> do return () -- Ignore note-off messages
+
+      -- Ignore CC3
       MIDI.MsgControl MIDI.Control{controlNumber}
         | controlNumber == 3
-        -> return () -- Ignore CC3
-      _otherwise
-        -> hPutStrLn stderr $ concat [
-                "Warning: unprocessed "
-              , show msg
-              ]
-  where
-    noteOnMap :: Map Int [Uinput.EventData]
-    noteOnMap = Map.fromList [
-          (60, pressAndRelease Codes.KeyE)
-        , (61, pressAndRelease Codes.KeyD)
-        , (62, pressAndRelease Codes.KeyS)
-        ]
+        -> do return ()
 
-    pressAndRelease :: Codes.Key -> [Uinput.EventData]
-    pressAndRelease key = [
-          Uinput.KeyEvent key Uinput.Pressed
-        , Uinput.KeyEvent key Uinput.Released
+      -- First expression pedal
+      MIDI.MsgControl ctrl@MIDI.Control{controlNumber}
+        | controlNumber == 84
+        -> do mDelta <- Adaptor.deltaCC ctrl
+              case mDelta of
+                Nothing ->
+                  -- Ignore first message
+                  return ()
+                Just d | d > 0 ->
+                  Adaptor.writeInputEvents [Adaptor.Rel (5, 0)]
+                Just _ | otherwise ->
+                  Adaptor.writeInputEvents [Adaptor.Rel (-5, 0)]
+
+      -- Unrecognized messages
+      _otherwise
+        -> do liftIO $ hPutStrLn stderr $ "Warning: unprocessed " ++ show msg
+  where
+    noteOnMap :: Map Int [Adaptor.InputEvent]
+    noteOnMap = Map.fromList [
+          (60, [Adaptor.Key Codes.KeyE])
+        , (61, [Adaptor.Key Codes.KeyD])
+        , (62, [Adaptor.Key Codes.KeyS])
         ]
