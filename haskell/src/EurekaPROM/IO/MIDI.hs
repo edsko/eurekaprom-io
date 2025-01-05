@@ -7,16 +7,20 @@
 module EurekaPROM.IO.MIDI (
     Message(..)
   , MessageBody(..)
+  , Note(..)
+  , Control(..)
     -- * Conversion
   , fromALSA
   ) where
 
+import Data.Kind
 import Optics
 
 import Sound.MIDI.ALSA.Query     ()
 import Sound.MIDI.ALSA.Construct ()
 
 import Sound.MIDI.Message.Channel         qualified as MIDI (Channel)
+import Sound.MIDI.Message.Channel         qualified as MIDI.Channel
 import Sound.MIDI.Message.Channel.Mode    qualified as MIDI.Mode
 import Sound.MIDI.Message.Channel.Voice   qualified as MIDI.Voice
 import Sound.MIDI.Message.Class.Construct qualified as MIDI.Construct
@@ -29,46 +33,66 @@ import Sound.ALSA.Sequencer.Event qualified as ALSA.Event
 -------------------------------------------------------------------------------}
 
 data Message = Message {
-      messageChannel :: MIDI.Channel
-    , messageBody    :: MessageBody
+      msgChannel :: Int
+    , msgBody    :: MessageBody
     }
-  deriving (Show)
+  deriving stock (Show)
 
 data MessageBody =
-    Note MIDI.Voice.Velocity MIDI.Voice.Pitch Bool
-  | Program MIDI.Voice.Program
-  | AnyController MIDI.Voice.Controller Int
-  | PitchBend Int
-  | ChannelPressure Int
-  | Mode MIDI.Mode.T
-  deriving (Show)
+    MsgNote Note
+  | MsgProgram Int
+  | MsgControl Control
+  | MsgPitchBend Int
+  | MsgChannelPressure Int
+  | MsgMode MIDI.Mode.T
+  deriving stock (Show)
+
+data Note = Note {
+      noteVelocity :: Int
+    , notePitch    :: Int
+    , noteOn       :: Bool
+    }
+  deriving stock (Show)
+
+data Control = Control {
+      controlNumber :: Int
+    , controlValue  :: Int
+    }
+  deriving stock (Show)
 
 makePrismLabels ''MessageBody
+makePrismLabels ''Note
+makePrismLabels ''Control
 
 instance MIDI.Query.C Message where
-  note            = queryWith #_Note
-  program         = queryWith #_Program
-  anyController   = queryWith #_AnyController
-  pitchBend       = queryWith #_PitchBend
-  channelPressure = queryWith #_ChannelPressure
-  mode            = queryWith #_Mode
+  note            = queryWith $ #_MsgNote % #_Note
+  program         = queryWith $ #_MsgProgram
+  anyController   = queryWith $ #_MsgControl % #_Control
+  pitchBend       = queryWith $ #_MsgPitchBend
+  channelPressure = queryWith $ #_MsgChannelPressure
+  mode            = queryWith $ #_MsgMode
 
 instance MIDI.Construct.C Message where
-  note            = constructWith #_Note
-  program         = constructWith #_Program
-  anyController   = constructWith #_AnyController
-  pitchBend       = constructWith #_PitchBend
-  channelPressure = constructWith #_ChannelPressure
-  mode            = constructWith #_Mode
+  note            = constructWith $ #_MsgNote % #_Note
+  program         = constructWith $ #_MsgProgram
+  anyController   = constructWith $ #_MsgControl % #_Control
+  pitchBend       = constructWith $ #_MsgPitchBend
+  channelPressure = constructWith $ #_MsgChannelPressure
+  mode            = constructWith $ #_MsgMode
 
-queryWith :: Prism' MessageBody x -> Message -> Maybe (MIDI.Channel, x)
-queryWith p Message{messageChannel, messageBody} =
-    (messageChannel,) <$> preview p messageBody
+queryWith ::
+     Wrapped x
+  => Prism' MessageBody (Unwrapped x) -> Message -> Maybe (MIDI.Channel, x)
+queryWith p Message{msgChannel, msgBody} =
+    (MIDI.Channel.toChannel msgChannel,) <$>
+      preview (p % re wrapped) msgBody
 
-constructWith :: Prism' MessageBody x -> MIDI.Channel -> x -> Message
-constructWith p messageChannel x = Message{
-      messageChannel
-    , messageBody = review p x
+constructWith ::
+     Wrapped x
+  => Prism' MessageBody (Unwrapped x) -> MIDI.Channel -> x -> Message
+constructWith p channel x = Message{
+      msgChannel = MIDI.Channel.fromChannel channel
+    , msgBody    = review (p % re wrapped) x
     }
 
 {-------------------------------------------------------------------------------
@@ -104,3 +128,59 @@ convert a
 
   | otherwise
   = Nothing
+
+{-------------------------------------------------------------------------------
+  Wrapping and unwrapping MIDI types
+-------------------------------------------------------------------------------}
+
+class Wrapped a where
+  type Unwrapped a :: Type
+  type Unwrapped a = a
+
+  wrapped :: Iso' a (Unwrapped a)
+  default wrapped :: Unwrapped a ~ a => Iso' a (Unwrapped a)
+  wrapped = simple
+
+instance Wrapped Bool
+instance Wrapped Int
+instance Wrapped MIDI.Mode.T
+
+instance Wrapped MIDI.Channel where
+  type Unwrapped MIDI.Channel = Int
+  wrapped = iso MIDI.Channel.fromChannel MIDI.Channel.toChannel
+
+instance Wrapped MIDI.Voice.Velocity where
+  type Unwrapped MIDI.Voice.Velocity = Int
+  wrapped = iso MIDI.Voice.fromVelocity MIDI.Voice.toVelocity
+
+instance Wrapped MIDI.Voice.Pitch where
+  type Unwrapped MIDI.Voice.Pitch = Int
+  wrapped = iso MIDI.Voice.fromPitch MIDI.Voice.toPitch
+
+instance Wrapped MIDI.Voice.Program where
+  type Unwrapped MIDI.Voice.Program = Int
+  wrapped = iso MIDI.Voice.fromProgram MIDI.Voice.toProgram
+
+instance Wrapped MIDI.Voice.Controller where
+  type Unwrapped MIDI.Voice.Controller = Int
+  wrapped = iso MIDI.Voice.fromController MIDI.Voice.toController
+
+instance (Wrapped a, Wrapped b) => Wrapped (a, b) where
+  type Unwrapped (a, b) = (Unwrapped a, Unwrapped b)
+  wrapped = iso2 wrapped wrapped
+
+instance (Wrapped a, Wrapped b, Wrapped c) => Wrapped (a, b, c) where
+  type Unwrapped (a, b, c) = (Unwrapped a, Unwrapped b, Unwrapped c)
+  wrapped = iso3 wrapped wrapped wrapped
+
+iso2 :: Iso' a1 b1 -> Iso' a2 b2 -> Iso' (a1, a2) (b1, b2)
+iso2 i1 i2 = iso there back
+  where
+   there (a, b) = (view   i1 a, view   i2 b)
+   back  (a, b) = (review i1 a, review i2 b)
+
+iso3 :: Iso' a1 b1 -> Iso' a2 b2 -> Iso' a3 b3 -> Iso' (a1, a2, a3) (b1, b2, b3)
+iso3 i1 i2 i3 = iso there back
+  where
+   there (a, b, c) = (view   i1 a, view   i2 b, view   i3 c)
+   back  (a, b, c) = (review i1 a, review i2 b, review i3 c)

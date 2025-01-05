@@ -15,6 +15,7 @@ common lang
 
   default-extensions:
       DataKinds
+      DefaultSignatures
       DerivingStrategies
       DisambiguateRecordFields
       TypeFamilies
