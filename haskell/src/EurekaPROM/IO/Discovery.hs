@@ -20,7 +20,7 @@ import Sound.ALSA.Sequencer.Client.Info qualified as Client.Info
 import Sound.ALSA.Sequencer.Port        qualified as Port
 import Sound.ALSA.Sequencer.Port.Info   qualified as Port.Info
 
-import EurekaPROM.IO.Alsa qualified as Alsa
+import EurekaPROM.IO.ALSA qualified as ALSA
 
 {-------------------------------------------------------------------------------
   Definition
@@ -48,19 +48,19 @@ clientPortName Client{clientName} Port{portName} = concat [
   List all
 -------------------------------------------------------------------------------}
 
-getAllPorts :: Alsa.Handle -> IO [(Client, [Port])]
+getAllPorts :: ALSA.Handle -> IO [(Client, [Port])]
 getAllPorts h = fmap (filter $ not . isUs . fst) <$>
-    Client.Info.queryLoop (Alsa.alsa h) $ \info -> do
+    Client.Info.queryLoop (ALSA.alsa h) $ \info -> do
       client <- getClient info
       (client,) <$> getClientPorts h client
   where
     -- Avoid listing ourselves amongst the available clients
     isUs :: Client -> Bool
-    isUs c = clientId c == Alsa.client h
+    isUs c = clientId c == ALSA.client h
 
-getClientPorts :: Alsa.Handle -> Client -> IO [Port]
+getClientPorts :: ALSA.Handle -> Client -> IO [Port]
 getClientPorts h Client{clientId} =
-    Port.Info.queryLoop (Alsa.alsa h) clientId $ \info ->
+    Port.Info.queryLoop (ALSA.alsa h) clientId $ \info ->
       getPort info
 
 getClient :: Client.Info.T -> IO Client
@@ -84,7 +84,7 @@ data FindPortResult =
   | PortAmbiguous [(Client, Port)]
   | PortFound Client Port Address.T
 
-findPort :: Alsa.Handle -> String -> IO FindPortResult
+findPort :: ALSA.Handle -> String -> IO FindPortResult
 findPort h name =
     mkResult . filter isMatch . concatMap flattenPorts <$> getAllPorts h
   where

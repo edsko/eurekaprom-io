@@ -4,8 +4,8 @@
 -- this one module, with no need to import from @Sound.ALSA.Sequencer.*@.
 module EurekaPROM.IO (
     -- * ALSA utilities
-    Alsa.Handle -- opaque
-  , Alsa.init
+    ALSA.Handle -- opaque
+  , ALSA.init
     -- * Discovery
   , Discovery.Client(..)
   , Discovery.Port(..)
@@ -17,6 +17,6 @@ module EurekaPROM.IO (
   , Listen.listen
   ) where
 
-import EurekaPROM.IO.Alsa      qualified as Alsa
+import EurekaPROM.IO.ALSA      qualified as ALSA
 import EurekaPROM.IO.Discovery qualified as Discovery
 import EurekaPROM.IO.Listen    qualified as Listen

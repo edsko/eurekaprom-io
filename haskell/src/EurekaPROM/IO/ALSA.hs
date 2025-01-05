@@ -1,21 +1,21 @@
 -- | Utilities for working with ALSA
 --
 -- Intended for qualified import.
-module EurekaPROM.IO.Alsa (
+module EurekaPROM.IO.ALSA (
     Handle(..)
   , init
   ) where
 
 import Prelude hiding (init)
 
-import Sound.ALSA.Sequencer         qualified as Alsa
+import Sound.ALSA.Sequencer         qualified as ALSA
 import Sound.ALSA.Sequencer.Address qualified as Address
 import Sound.ALSA.Sequencer.Client  qualified as Client
 import Sound.ALSA.Sequencer.Port    qualified as Port
 import Sound.ALSA.Sequencer.Queue   qualified as Queue
 
 data Handle = Handle {
-      alsa    :: Alsa.T Alsa.DuplexMode
+      alsa    :: ALSA.T ALSA.DuplexMode
     , client  :: Client.T
     , port    :: Port.T
     , address :: Address.T
@@ -24,7 +24,7 @@ data Handle = Handle {
 
 init :: (Handle -> IO a) -> IO a
 init k =
-    Alsa.withDefault @Alsa.DuplexMode Alsa.Block     $ \alsa  ->
+    ALSA.withDefault @ALSA.DuplexMode ALSA.Block     $ \alsa  ->
     Port.withSimple alsa "default" portCaps portType $ \port  ->
     Queue.withNamed alsa "default"                   $ \queue ->
     do
