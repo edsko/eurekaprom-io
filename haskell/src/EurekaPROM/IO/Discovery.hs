@@ -49,14 +49,18 @@ clientPortName Client{clientName} Port{portName} = concat [
 -------------------------------------------------------------------------------}
 
 getAllPorts :: Alsa.Handle -> IO [(Client, [Port])]
-getAllPorts h@Alsa.Handle{alsa} =
-    Client.Info.queryLoop alsa $ \info -> do
+getAllPorts h = fmap (filter $ not . isUs . fst) <$>
+    Client.Info.queryLoop (Alsa.alsa h) $ \info -> do
       client <- getClient info
       (client,) <$> getClientPorts h client
+  where
+    -- Avoid listing ourselves amongst the available clients
+    isUs :: Client -> Bool
+    isUs c = clientId c == Alsa.client h
 
 getClientPorts :: Alsa.Handle -> Client -> IO [Port]
-getClientPorts Alsa.Handle{alsa} Client{clientId} =
-    Port.Info.queryLoop alsa clientId $ \info ->
+getClientPorts h Client{clientId} =
+    Port.Info.queryLoop (Alsa.alsa h) clientId $ \info ->
       getPort info
 
 getClient :: Client.Info.T -> IO Client
@@ -81,8 +85,8 @@ data FindPortResult =
   | PortFound Client Port Address.T
 
 findPort :: Alsa.Handle -> String -> IO FindPortResult
-findPort alsa name =
-    mkResult . filter isMatch . concatMap flattenPorts <$> getAllPorts alsa
+findPort h name =
+    mkResult . filter isMatch . concatMap flattenPorts <$> getAllPorts h
   where
     flattenPorts :: (Client, [Port]) -> [(Client, Port)]
     flattenPorts (client, ports) = map (client,) ports

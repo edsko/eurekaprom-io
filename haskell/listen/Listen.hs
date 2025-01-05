@@ -29,4 +29,4 @@ main = IO.init $ \h -> do
               ]
           IO.PortFound client port addr -> do
             putStrLn $ "Using " ++ IO.clientPortName client port
-            IO.listen h addr
+            IO.listen h addr print
