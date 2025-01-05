@@ -167,20 +167,16 @@ instance Wrapped MIDI.Voice.Controller where
 
 instance (Wrapped a, Wrapped b) => Wrapped (a, b) where
   type Unwrapped (a, b) = (Unwrapped a, Unwrapped b)
-  wrapped = iso2 wrapped wrapped
+  wrapped =
+      iso (aux     wrapped      wrapped )
+          (aux (re wrapped) (re wrapped))
+    where
+      aux i1 i2 (a, b) = (view i1 a, view i2 b)
 
 instance (Wrapped a, Wrapped b, Wrapped c) => Wrapped (a, b, c) where
   type Unwrapped (a, b, c) = (Unwrapped a, Unwrapped b, Unwrapped c)
-  wrapped = iso3 wrapped wrapped wrapped
-
-iso2 :: Iso' a1 b1 -> Iso' a2 b2 -> Iso' (a1, a2) (b1, b2)
-iso2 i1 i2 = iso there back
-  where
-   there (a, b) = (view   i1 a, view   i2 b)
-   back  (a, b) = (review i1 a, review i2 b)
-
-iso3 :: Iso' a1 b1 -> Iso' a2 b2 -> Iso' a3 b3 -> Iso' (a1, a2, a3) (b1, b2, b3)
-iso3 i1 i2 i3 = iso there back
-  where
-   there (a, b, c) = (view   i1 a, view   i2 b, view   i3 c)
-   back  (a, b, c) = (review i1 a, review i2 b, review i3 c)
+  wrapped =
+      iso (aux     wrapped      wrapped      wrapped )
+          (aux (re wrapped) (re wrapped) (re wrapped))
+    where
+      aux i1 i2 i3 (a, b, c) = (view i1 a, view i2 b, view i3 c)
