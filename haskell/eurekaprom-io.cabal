@@ -29,17 +29,21 @@ common lang
 library
   import:           lang
   hs-source-dirs:   src
-  exposed-modules:  EurekaPROM.IO
 
   other-extensions:
       TemplateHaskell
       OverloadedLabels
 
-  other-modules:
+  exposed-modules:
       EurekaPROM.IO.ALSA
-      EurekaPROM.IO.Discovery
-      EurekaPROM.IO.Listen
+      EurekaPROM.IO.App
       EurekaPROM.IO.MIDI
+
+  other-modules:
+      EurekaPROM.IO.ALSA.Discovery
+      EurekaPROM.IO.ALSA.Handle
+      EurekaPROM.IO.ALSA.Listen
+      EurekaPROM.IO.ALSA.MIDI
 
   build-depends:
     , alsa-seq  >= 0.6 && < 0.7
@@ -58,7 +62,8 @@ executable eurekaprom-io-listen
       Listen.Cmdline
 
   build-depends:
-      optparse-applicative >= 0.18 && < 0.19
+--    , evdev                >= 2.3  && < 2.4
+    , optparse-applicative >= 0.18 && < 0.19
 
 test-suite eurekaprom-io-test
   import:         lang

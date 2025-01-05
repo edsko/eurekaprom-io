@@ -9,8 +9,18 @@ general applications.
 
 ## System requirements
 
-Requires [`alsa-seq`][https://hackage.haskell.org/package/alsa-seq], which in
-turn requires the ALSA dev system libraries; see https://wiki.haskell.org/ALSA.
+The `eurekaprom-io` library uses
+[`alsa-seq`](https://hackage.haskell.org/package/alsa-seq), which requires
+requires the ALSA dev system libraries; see https://wiki.haskell.org/ALSA.
+
+The `eurekaprom-io-listen` application additionally uses
+[`evdev`](https://hackage.haskell.org/package/evdev), which requires `libevdev`.
+
+On Ubuntu these sytem libraries can be installed using
+
+```
+sudo apt install libasound2-dev libevdev-dev
+```
 
 ## References
 
