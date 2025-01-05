@@ -63,6 +63,7 @@ executable eurekaprom-io-listen
       Listen.Cmdline
 
   build-depends:
+    , containers           >= 0.6  && < 0.7
     , evdev                >= 2.3  && < 2.4
     , optparse-applicative >= 0.18 && < 0.19
 

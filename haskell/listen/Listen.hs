@@ -1,5 +1,9 @@
 module Listen (main) where
 
+import Data.Map (Map)
+import Data.Map qualified as Map
+import System.IO
+
 import Evdev.Codes  qualified as Codes
 import Evdev.Uinput qualified as Uinput
 
@@ -33,17 +37,39 @@ listen h port = do
   where
     deviceOpts :: Uinput.DeviceOpts
     deviceOpts = Uinput.defaultDeviceOpts{
-          Uinput.keys = [Codes.KeyA .. Codes.KeyZ]
+          -- NOTE: [KeyA .. KeyZ] does /not/ work (poor 'Enum' instance)
+          Uinput.keys = [Codes.KeyE, Codes.KeyD, Codes.KeyS]
         }
 
 processMsg :: Uinput.Device -> MIDI.Message -> IO ()
 processMsg uinput msg = do
-    print msg
     case MIDI.msgBody msg of
-      MIDI.MsgNote MIDI.Note{notePitch, noteVelocity} | notePitch == 60, noteVelocity == 100 ->
-        Uinput.writeBatch uinput [
-            Uinput.KeyEvent Codes.KeyA Uinput.Pressed
-          , Uinput.KeyEvent Codes.KeyA Uinput.Released
-          ]
-      _otherwise ->
-        return ()
+      -- Note-on
+      MIDI.MsgNote MIDI.Note{notePitch, noteVelocity}
+        | noteVelocity == 100
+        , Just events <- Map.lookup notePitch noteOnMap
+        -> Uinput.writeBatch uinput events
+      MIDI.MsgNote MIDI.Note{noteVelocity}
+        | noteVelocity == 0
+        -> return () -- Ignore note-off messages
+      MIDI.MsgControl MIDI.Control{controlNumber}
+        | controlNumber == 3
+        -> return () -- Ignore CC3
+      _otherwise
+        -> hPutStrLn stderr $ concat [
+                "Warning: unprocessed "
+              , show msg
+              ]
+  where
+    noteOnMap :: Map Int [Uinput.EventData]
+    noteOnMap = Map.fromList [
+          (60, pressAndRelease Codes.KeyE)
+        , (61, pressAndRelease Codes.KeyD)
+        , (62, pressAndRelease Codes.KeyS)
+        ]
+
+    pressAndRelease :: Codes.Key -> [Uinput.EventData]
+    pressAndRelease key = [
+          Uinput.KeyEvent key Uinput.Pressed
+        , Uinput.KeyEvent key Uinput.Released
+        ]
