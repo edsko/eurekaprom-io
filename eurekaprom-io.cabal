@@ -23,13 +23,14 @@ common lang
       -Wunused-packages
 
 library
-  import:         lang
-  hs-source-dirs: src
+  import:          lang
+  hs-source-dirs:  src
+  exposed-modules: EurekaPROM.IO
 
-  exposed-modules:
-      EurekaPROM.IO
+  other-modules:
       EurekaPROM.IO.Alsa
       EurekaPROM.IO.Discovery
+      EurekaPROM.IO.Listen
 
   build-depends:
       alsa-seq >= 0.6 && < 0.7
@@ -53,4 +54,4 @@ test-suite eurekaprom-io-test
   main-is:        Test.hs
   ghc-options:    -main-is Test
   hs-source-dirs: test
-  build-depends:  eurekaprom-io
+--  build-depends:  eurekaprom-io

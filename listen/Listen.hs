@@ -3,31 +3,30 @@ module Listen (main) where
 import Control.Monad
 import Data.List (intercalate)
 
-import EurekaPROM.IO           qualified as IO
-import EurekaPROM.IO.Discovery qualified as Discovery
-import EurekaPROM.IO.Alsa      qualified as Alsa
+import EurekaPROM.IO qualified as IO
 
 import Listen.Cmdline
 
 main :: IO ()
-main = Alsa.init $ \alsa -> do
+main = IO.init $ \h -> do
     cmdline <- getCmdline
     case cmdMode cmdline of
       ModeListPorts -> do
-        clients <- Discovery.getAllPorts alsa
+        clients <- IO.getAllPorts h
         forM_ clients $ \(client, ports) ->
           forM_ ports $ \port ->
-              putStrLn $ Discovery.clientPortName client port
+              putStrLn $ IO.clientPortName client port
       ModeListen portName -> do
-        mPort <- Discovery.findPort alsa portName
+        mPort <- IO.findPort h portName
         case mPort of
-          Discovery.PortNotFound ->
+          IO.PortNotFound ->
             fail "Port not found"
-          Discovery.PortAmbiguous ports ->
+          IO.PortAmbiguous ports ->
             fail $ concat [
                 "Port ambiguous: "
               , intercalate ", " $
-                  map (uncurry Discovery.clientPortName) ports
+                  map (uncurry IO.clientPortName) ports
               ]
-          Discovery.PortFound client port ->
-            putStrLn $ "Using " ++ Discovery.clientPortName client port
+          IO.PortFound client port addr -> do
+            putStrLn $ "Using " ++ IO.clientPortName client port
+            IO.listen h addr

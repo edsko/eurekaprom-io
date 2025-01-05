@@ -1,3 +1,6 @@
+-- | Utilities for finding the MIDI device
+--
+-- Intended for qualified import.
 module EurekaPROM.IO.Discovery (
     -- * Definition
     Client(..)
@@ -11,11 +14,13 @@ module EurekaPROM.IO.Discovery (
 
 import Data.List (isInfixOf)
 
-import Sound.ALSA.Sequencer             qualified as Alsa
+import Sound.ALSA.Sequencer.Address     qualified as Address
 import Sound.ALSA.Sequencer.Client      qualified as Client
-import Sound.ALSA.Sequencer.Port.Info   qualified as Port.Info
 import Sound.ALSA.Sequencer.Client.Info qualified as Client.Info
-import Sound.ALSA.Sequencer.Port qualified as Port
+import Sound.ALSA.Sequencer.Port        qualified as Port
+import Sound.ALSA.Sequencer.Port.Info   qualified as Port.Info
+
+import EurekaPROM.IO.Alsa qualified as Alsa
 
 {-------------------------------------------------------------------------------
   Definition
@@ -43,14 +48,14 @@ clientPortName Client{clientName} Port{portName} = concat [
   List all
 -------------------------------------------------------------------------------}
 
-getAllPorts :: Alsa.T mode -> IO [(Client, [Port])]
-getAllPorts alsa =
+getAllPorts :: Alsa.Handle -> IO [(Client, [Port])]
+getAllPorts h@Alsa.Handle{alsa} =
     Client.Info.queryLoop alsa $ \info -> do
       client <- getClient info
-      (client,) <$> getClientPorts alsa client
+      (client,) <$> getClientPorts h client
 
-getClientPorts :: Alsa.T mode -> Client -> IO [Port]
-getClientPorts alsa Client{clientId} =
+getClientPorts :: Alsa.Handle -> Client -> IO [Port]
+getClientPorts Alsa.Handle{alsa} Client{clientId} =
     Port.Info.queryLoop alsa clientId $ \info ->
       getPort info
 
@@ -73,9 +78,9 @@ getPort info =
 data FindPortResult =
     PortNotFound
   | PortAmbiguous [(Client, Port)]
-  | PortFound Client Port
+  | PortFound Client Port Address.T
 
-findPort :: Alsa.T mode -> String -> IO FindPortResult
+findPort :: Alsa.Handle -> String -> IO FindPortResult
 findPort alsa name =
     mkResult . filter isMatch . concatMap flattenPorts <$> getAllPorts alsa
   where
@@ -87,5 +92,11 @@ findPort alsa name =
 
     mkResult :: [(Client, Port)] -> FindPortResult
     mkResult []       = PortNotFound
-    mkResult [(c, p)] = PortFound c p
+    mkResult [(c, p)] = PortFound c p (mkAddress c p)
     mkResult ps       = PortAmbiguous ps
+
+    mkAddress :: Client -> Port -> Address.T
+    mkAddress c p = Address.Cons {
+          client = clientId c
+        , port   = portId   p
+        }
