@@ -18,6 +18,7 @@ common lang
       DefaultSignatures
       DerivingStrategies
       DisambiguateRecordFields
+      OverloadedStrings
       TypeFamilies
       UndecidableInstances
 
@@ -62,7 +63,7 @@ executable eurekaprom-io-listen
       Listen.Cmdline
 
   build-depends:
---    , evdev                >= 2.3  && < 2.4
+    , evdev                >= 2.3  && < 2.4
     , optparse-applicative >= 0.18 && < 0.19
 
 test-suite eurekaprom-io-test

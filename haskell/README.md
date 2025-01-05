@@ -22,6 +22,18 @@ On Ubuntu these sytem libraries can be installed using
 sudo apt install libasound2-dev libevdev-dev
 ```
 
+For `eurekaprom-io-listen` you will need permission to write to `/dev/uinput`.
+See https://github.com/georgefst/evdev/tree/master/evdev#permissions .
+
 ## References
 
+ALSA:
+
 * [ALSA documentation](https://www.alsa-project.org/alsa-doc/alsa-lib/seq.html)
+* [`alsa-seq` examples](https://archives.haskell.org/code.haskell.org/alsa/seq/examples/)
+
+`libevdev`:
+
+* Blogpost ["The difference between `uinput` and `evdev`"](https://who-t.blogspot.com/2016/05/the-difference-between-uinput-and-evdev.html)
+* [Kernel documentation and examples](https://kernel.org/doc/html/v4.12/input/uinput.html)
+* [`evdev` examples](https://github.com/georgefst/evdev/tree/master/evdev-examples)
