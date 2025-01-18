@@ -1,17 +1,22 @@
 -- | Utilities for finding the MIDI device
 --
 -- Intended for qualified import.
+--
+-- > import EurekaPROM.IO.ALSA.Discovery qualified as Discovery
 module EurekaPROM.IO.ALSA.Discovery (
     -- * Definition
     Client(..)
+  , ClientName
   , Port(..)
+  , PortName
   , portQualifiedName
     -- * Discovery
   , getAllPorts
-  , FindPortResult(..)
+  , FindPortException(..)
   , findPort
   ) where
 
+import Control.Exception
 import Data.List (isInfixOf)
 
 import Sound.ALSA.Sequencer.Address     qualified as Address
@@ -29,16 +34,19 @@ import EurekaPROM.IO.ALSA.Handle qualified as Handle
 
 data Client = Client {
       clientId   :: Client.T
-    , clientName :: String
+    , clientName :: ClientName
     }
   deriving (Show)
 
 data Port = Port {
       portClient  :: Client
     , portId      :: Port.T
-    , portName    :: String
+    , portName    :: PortName
     , portAddress :: Address.T
     }
+
+type ClientName = String
+type PortName   = String
 
 portQualifiedName :: Port -> String
 portQualifiedName Port{portClient = Client{clientName}, portName} = concat [
@@ -97,19 +105,23 @@ getPort portClient info = do
   Find specified port
 -------------------------------------------------------------------------------}
 
-data FindPortResult =
-    PortNotFound
-  | PortAmbiguous [Port]
-  | PortFound Port
+data FindPortException =
+    PortNotFound PortName
+  | PortAmbiguous PortName [PortName]
+  deriving stock (Show)
+  deriving anyclass (Exception)
 
-findPort :: ALSA.Handle -> String -> IO FindPortResult
+-- | Find port by name
+--
+-- May throw 'FindPortException'.
+findPort :: ALSA.Handle -> PortName -> IO Port
 findPort h name =
-    mkResult . filter isMatch <$> getAllPorts h
+    mkResult . filter isMatch =<< getAllPorts h
   where
     isMatch :: Port -> Bool
     isMatch port = name `isInfixOf` portQualifiedName port
 
-    mkResult :: [Port] -> FindPortResult
-    mkResult []  = PortNotFound
-    mkResult [p] = PortFound p
-    mkResult ps  = PortAmbiguous ps
+    mkResult :: [Port] -> IO Port
+    mkResult [p] = return p
+    mkResult []  = throwIO $ PortNotFound name
+    mkResult ps  = throwIO $ PortAmbiguous name (map portName ps)

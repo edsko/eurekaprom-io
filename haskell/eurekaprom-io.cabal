@@ -16,7 +16,9 @@ common lang
   default-extensions:
       DataKinds
       DefaultSignatures
+      DeriveAnyClass
       DerivingStrategies
+      DerivingVia
       DisambiguateRecordFields
       OverloadedStrings
       TypeFamilies
@@ -26,6 +28,7 @@ common lang
       -Wall
       -Wprepositive-qualified-module
       -Wunused-packages
+      -Widentities
 
 library
   import:           lang
@@ -37,14 +40,14 @@ library
 
   exposed-modules:
       EurekaPROM.IO.ALSA
-      EurekaPROM.IO.App
-      EurekaPROM.IO.MIDI
+      EurekaPROM.IO.Input
+      EurekaPROM.IO.Output
 
   other-modules:
       EurekaPROM.IO.ALSA.Discovery
       EurekaPROM.IO.ALSA.Handle
-      EurekaPROM.IO.ALSA.Listen
       EurekaPROM.IO.ALSA.MIDI
+      EurekaPROM.IO.Util
 
   build-depends:
     , alsa-seq  >= 0.6 && < 0.7
@@ -52,27 +55,18 @@ library
     , midi-alsa >= 0.2 && < 0.3
     , optics    >= 0.4 && < 0.5
 
-executable eurekaprom-io-listen
+executable eurekaprom-io
   import:         lang
-  main-is:        Listen.hs
-  ghc-options:    -main-is Listen
-  hs-source-dirs: listen
+  main-is:        Main.hs
+  hs-source-dirs: app
   build-depends:  eurekaprom-io
 
   other-modules:
-      Listen.Adaptor
-      Listen.Cmdline
+      App.Adaptor
+      App.Cmdline
 
   build-depends:
     , containers           >= 0.6  && < 0.7
     , evdev                >= 2.3  && < 2.4
     , mtl                  >= 2.2  && < 2.3
     , optparse-applicative >= 0.18 && < 0.19
-
-test-suite eurekaprom-io-test
-  import:         lang
-  type:           exitcode-stdio-1.0
-  main-is:        Test.hs
-  ghc-options:    -main-is Test
-  hs-source-dirs: test
---  build-depends:  eurekaprom-io

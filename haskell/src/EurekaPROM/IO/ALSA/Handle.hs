@@ -27,7 +27,7 @@ data Handle = Handle {
 
 init :: (Handle -> IO a) -> IO a
 init k =
-    ALSA.withDefault @ALSA.DuplexMode ALSA.Block     $ \alsa  ->
+    ALSA.withDefault ALSA.Block                      $ \alsa  ->
     Port.withSimple alsa "default" portCaps portType $ \port  ->
     Queue.withNamed alsa "default"                   $ \queue ->
     do
@@ -43,6 +43,12 @@ init k =
     portCaps = Port.caps [
           Port.capWrite
         , Port.capSubsWrite
+        , Port.capRead
+        , Port.capSubsRead
+        , Port.capSyncRead
+        , Port.capSyncWrite
+        , Port.capDuplex
+
         ]
 
     portType :: Port.Type

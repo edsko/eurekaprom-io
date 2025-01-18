@@ -1,7 +1,7 @@
 -- | Monad for turning MIDI messages into input device events
 --
 -- Intended for qualified import.
-module Listen.Adaptor (
+module App.Adaptor (
     Adaptor -- opaque
   , run
     -- * State
@@ -20,8 +20,6 @@ import Data.Map qualified as Map
 import Evdev        qualified
 import Evdev.Codes  qualified as Codes
 import Evdev.Uinput qualified as Uinput
-
-import EurekaPROM.IO.MIDI qualified as MIDI
 
 {-------------------------------------------------------------------------------
   Definition
@@ -114,12 +112,12 @@ writeBatch es = withUInput $ \device -> liftIO $ Uinput.writeBatch device es
   State
 -------------------------------------------------------------------------------}
 
-deltaCC :: MIDI.Control -> Adaptor (Maybe Int)
-deltaCC MIDI.Control{controlNumber, controlValue = newValue} = WrapAdaptor $
+deltaCC :: Int -> Int -> Adaptor (Maybe Int)
+deltaCC cc newValue = WrapAdaptor $
     state $ \st -> (
-        do oldValue <- Map.lookup controlNumber (stCC st)
+        do oldValue <- Map.lookup cc (stCC st)
            return $ newValue - oldValue
-      , st{stCC = Map.insert controlNumber newValue (stCC st)}
+      , st{stCC = Map.insert cc newValue (stCC st)}
       )
 
 {-------------------------------------------------------------------------------
@@ -144,4 +142,5 @@ fromInputEvent (Rel (x, y)) = [
     ]
 
 writeInputEvents :: [InputEvent] -> Adaptor ()
-writeInputEvents = writeBatch . concatMap fromInputEvent
+writeInputEvents [] = return ()
+writeInputEvents es = writeBatch $ concatMap fromInputEvent es

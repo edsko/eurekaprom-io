@@ -12,9 +12,11 @@ module EurekaPROM.IO.ALSA.MIDI (
   , Control(..)
     -- * Conversion
   , fromALSA
+  , toALSA
   ) where
 
 import Data.Kind
+import Data.Maybe (fromMaybe)
 import Optics
 
 import Sound.MIDI.ALSA.Query     ()
@@ -102,6 +104,11 @@ constructWith p channel x = Message{
 
 fromALSA :: ALSA.Event.T -> Maybe Message
 fromALSA = convert
+
+toALSA :: Message -> ALSA.Event.Data
+toALSA msg =
+    fromMaybe (error $ "toALSA: could not convert " ++ show msg) $
+      convert msg
 
 {-------------------------------------------------------------------------------
   Internal auxiliary
