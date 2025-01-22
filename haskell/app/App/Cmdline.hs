@@ -1,10 +1,12 @@
-module Listen.Cmdline (
+module App.Cmdline (
     Cmdline(..)
   , Mode(..)
   , getCmdline
   ) where
 
 import Options.Applicative
+
+import EurekaPROM.IO.ALSA qualified as ALSA
 
 {-------------------------------------------------------------------------------
   Definition
@@ -17,7 +19,9 @@ data Cmdline = Cmdline {
 
 data Mode =
     ModeListPorts
-  | ModeListen String
+  | ModeDump ALSA.PortSpec
+  | ModeSimEvents ALSA.PortSpec
+  | ModeTestLEDs ALSA.PortSpec
   deriving stock (Show)
 
 {-------------------------------------------------------------------------------
@@ -46,16 +50,30 @@ parseMode :: Parser Mode
 parseMode = subparser $ mconcat [
       command' "list-ports" (pure ModeListPorts)
         "List available ports"
-    , command' "listen" (ModeListen <$> parsePort)
-        "Listen"
+    , command' "dump" (ModeDump <$> parsePortSpec)
+        "Dump all output from the FCB1010"
+    , command' "simulate" (ModeSimEvents <$> parsePortSpec)
+        "Simulate keyboard and mouse events"
+    , command' "test-LEDs" (ModeTestLEDs <$> parsePortSpec)
+        "Test the LEDs"
     ]
 
-parsePort :: Parser String
-parsePort = strOption $ mconcat [
-      short 'p'
-    , long "port"
-    , help "Port"
-    , metavar "NAME"
+parsePortSpec :: Parser ALSA.PortSpec
+parsePortSpec = asum [
+      pure ALSA.DualPort
+        <*> (strOption $ mconcat [
+                long "input-port"
+              , help "Input port"
+              ])
+        <*> (strOption $ mconcat [
+                long "output-port"
+              , help "Output port"
+              ])
+    , pure ALSA.SinglePort
+        <*> (strOption $ mconcat [
+                 long "port"
+               , help "Port name (for both input and output)"
+               ])
     ]
 
 {-------------------------------------------------------------------------------
