@@ -4,8 +4,8 @@ import Data.Aeson (ToJSON(..))
 import Data.Aeson qualified as Aeson
 import Data.Yaml qualified as Yaml
 
+import Control.ALSA.Handle qualified as ALSA (Handle)
 import EurekaPROM.IO.Input qualified as Input
-import EurekaPROM.IO.ALSA qualified as ALSA
 import EurekaPROM.IO.Simultaneous (simultaneous)
 import EurekaPROM.IO.Simultaneous qualified as Simultaneous
 

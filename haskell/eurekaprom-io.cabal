@@ -34,6 +34,29 @@ common lang
       -Widentities
       -Wredundant-constraints
 
+-- High-level API for working with ALSA
+--
+-- This should be the only place where we depend on @alsa-seq@ and @midi-alsa@.
+--
+-- This library is not specific to the EurekaPROM.
+library control
+  import:         lang
+  hs-source-dirs: control
+
+  exposed-modules:
+      Control.ALSA
+      Control.ALSA.Handle
+
+  reexported-modules:
+      alsa-seq:Sound.ALSA.Sequencer.Event as Control.ALSA.Event
+
+  other-modules:
+      Control.ALSA.Discovery
+
+  build-depends:
+    , alsa-seq  >= 0.6 && < 0.7
+    , midi-alsa >= 0.2 && < 0.3
+
 library
   import:           lang
   hs-source-dirs:   src
@@ -43,32 +66,39 @@ library
       OverloadedLabels
 
   exposed-modules:
-      EurekaPROM.IO.ALSA
-      EurekaPROM.IO.Input
-      EurekaPROM.IO.Output
-      EurekaPROM.IO.Simultaneous
+      --
+      -- General purpose data structures
+      --
 
       Data.Mealy
       Data.MIDI
 
+      --
+      -- EurekaPROM specific functionality
+      --
+
+      EurekaPROM.IO.Input
+      EurekaPROM.IO.Output
+      EurekaPROM.IO.Simultaneous
+
   other-modules:
-      EurekaPROM.IO.ALSA.Discovery
-      EurekaPROM.IO.ALSA.Handle
       EurekaPROM.IO.Util
 
   build-depends:
+      -- internal dependencies
+    , control
+
+  build-depends:
+      -- external dependencies
     , aeson      >= 2.2 && < 2.3
-    , alsa-seq   >= 0.6 && < 0.7
     , containers >= 0.6 && < 0.7
     , midi       >= 0.2 && < 0.3
-    , midi-alsa  >= 0.2 && < 0.3
     , optics     >= 0.4 && < 0.5
 
 executable eurekaprom-io
   import:         lang
   main-is:        Main.hs
   hs-source-dirs: app
-  build-depends:  eurekaprom-io
 
   other-modules:
       App.Adaptor
@@ -77,6 +107,11 @@ executable eurekaprom-io
       App.Mode.GenMealy
       App.Mode.SimEvents
       App.Mode.TestLEDs
+
+  build-depends:
+      -- internal dependencies
+      control
+    , eurekaprom-io
 
   build-depends:
       -- inherited dependencies

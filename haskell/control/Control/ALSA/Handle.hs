@@ -2,9 +2,9 @@
 --
 -- Intended for qualified import.
 --
--- > import EurekaPROM.IO.ALSA.Handle qualified as ALSA (Handle)
--- > import EurekaPROM.IO.ALSA.Handle qualified as Handle
-module EurekaPROM.IO.ALSA.Handle (
+-- > import Control.ALSA.Handle qualified as ALSA (Handle)
+-- > import Control.ALSA.Handle qualified as Handle
+module Control.ALSA.Handle (
     Handle(..)
   , init
   ) where

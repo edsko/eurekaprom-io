@@ -2,7 +2,9 @@ module Main (main) where
 
 import Evdev.Uinput qualified as Uinput ()
 
-import EurekaPROM.IO.ALSA   qualified as ALSA
+import Control.ALSA qualified as ALSA
+import Control.ALSA.Handle qualified as ALSA (Handle)
+import Control.ALSA.Handle qualified as Handle
 
 import App.Cmdline
 
@@ -20,18 +22,18 @@ main = do
     cmdline <- getCmdline
     case cmdMode cmdline of
       ModeListPorts ->
-        ALSA.init $ \h -> do
+        Handle.init $ \h -> do
           ALSA.listPorts h
       ModeDump portSpec -> do
-        ALSA.init $ \h -> do
+        Handle.init $ \h -> do
           ALSA.resolve h portSpec
           Mode.Dump.run h
       ModeSimEvents portSpec -> do
-        ALSA.init $ \h -> do
+        Handle.init $ \h -> do
           ALSA.resolve h portSpec
           Mode.SimEvents.run h
       ModeTestLEDs portSpec -> do
-        ALSA.init $ \h -> do
+        Handle.init $ \h -> do
           ALSA.resolve h portSpec
           Mode.TestLEDs.run h
       ModeGenMealy cmd ->
@@ -43,7 +45,7 @@ initGenMealy ::
   -> (Mode.GenMealy.Cmd ALSA.Handle -> IO r)
   -> IO r
 initGenMealy (Mode.GenMealy.Exec portSpec) k =
-    ALSA.init $ \h -> do
+    Handle.init $ \h -> do
       ALSA.resolve h portSpec
       k $ Mode.GenMealy.Exec h
 initGenMealy (Mode.GenMealy.Yaml fp) k =

@@ -5,7 +5,7 @@ import Control.Monad
 
 import Evdev.Uinput qualified as Uinput ()
 
-import EurekaPROM.IO.ALSA   qualified as ALSA
+import Control.ALSA.Handle qualified as ALSA (Handle)
 import EurekaPROM.IO.Output qualified as Output
 
 {-------------------------------------------------------------------------------

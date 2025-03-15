@@ -13,11 +13,10 @@ module EurekaPROM.IO.Input (
 
 import Control.Exception
 
-import "alsa-seq"  Sound.ALSA.Sequencer.Event qualified as Event
-import "midi-alsa" Sound.MIDI.ALSA.Query ()
-
-import EurekaPROM.IO.ALSA        qualified as ALSA
-import EurekaPROM.IO.ALSA.Handle qualified as Handle
+import Control.ALSA qualified as ALSA ()
+import Control.ALSA.Handle qualified as ALSA (Handle)
+import Control.ALSA.Handle qualified as Handle
+import Control.ALSA.Event qualified as ALSA.Event
 import EurekaPROM.IO.Util
 
 import Data.MIDI qualified as MIDI
@@ -127,7 +126,7 @@ toEvent msg =
 -- | Unexpected event
 data UnexpectedEvent =
     -- | We could not parse the event as a MIDI message
-    UnexpectedEvent Event.T
+    UnexpectedEvent ALSA.Event.T
 
     -- | Unexpected MIDI message from the FCB1010
   | UnexpectedMessage MIDI.Message
@@ -136,7 +135,7 @@ data UnexpectedEvent =
 
 wait :: ALSA.Handle -> IO Event
 wait h = do
-    event <- Event.input (Handle.alsa h)
+    event <- ALSA.Event.input (Handle.alsa h)
     case MIDI.convert event of
       Nothing  -> throwIO $ UnexpectedEvent event
       Just msg ->

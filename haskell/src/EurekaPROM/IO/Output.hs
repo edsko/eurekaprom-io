@@ -25,11 +25,10 @@ import Data.Char
 import Data.Functor.Const
 import Data.Kind
 
-import "alsa-seq"  Sound.ALSA.Sequencer.Event qualified as Event
-import "midi-alsa" Sound.MIDI.ALSA.Construct ()
-
-import EurekaPROM.IO.ALSA        qualified as ALSA
-import EurekaPROM.IO.ALSA.Handle qualified as Handle
+import Control.ALSA qualified as ALSA ()
+import Control.ALSA.Handle qualified as ALSA (Handle)
+import Control.ALSA.Handle qualified as Handle
+import Control.ALSA.Event qualified as ALSA.Event
 import EurekaPROM.IO.Util
 
 import Data.MIDI qualified as MIDI
@@ -317,18 +316,18 @@ displayToMIDI val = MIDI.Message {
 
 toggleLED :: ALSA.Handle -> LED -> Bool -> IO ()
 toggleLED h led val = do
-    let ev = Event.simple (Handle.address h) eventData
-    void $ Event.outputDirect (Handle.alsa h) ev
+    let ev = ALSA.Event.simple (Handle.address h) eventData
+    void $ ALSA.Event.outputDirect (Handle.alsa h) ev
   where
-    eventData :: Event.Data
+    eventData :: ALSA.Event.Data
     eventData = MIDI.convert' $ ledToMIDI led val
 
 toggleDisplay :: ALSA.Handle -> Display Value -> IO ()
 toggleDisplay h val = do
-    let ev = Event.simple (Handle.address h) eventData
-    void $ Event.outputDirect (Handle.alsa h) ev
+    let ev = ALSA.Event.simple (Handle.address h) eventData
+    void $ ALSA.Event.outputDirect (Handle.alsa h) ev
   where
-    eventData :: Event.Data
+    eventData :: ALSA.Event.Data
     eventData = MIDI.convert' $ displayToMIDI val
 
 clearDisplay :: ALSA.Handle -> IO ()

@@ -2,13 +2,10 @@
 --
 -- Intended for qualified import.
 --
--- > import EurekaPROM.IO.ALSA qualified as ALSA
-module EurekaPROM.IO.ALSA (
-    -- * Initialization
-    ALSA.Handle -- opaque
-  , Handle.init
+-- > import Control.ALSA qualified as ALSA
+module Control.ALSA (
     -- Resolution
-  , PortSpec(..)
+    PortSpec(..)
   , listPorts
   , resolve
   ) where
@@ -17,10 +14,13 @@ import Control.Monad
 
 import "alsa-seq" Sound.ALSA.Sequencer.Subscribe qualified as Subscribe
 
-import EurekaPROM.IO.ALSA.Discovery (PortName)
-import EurekaPROM.IO.ALSA.Discovery qualified as Discovery
-import EurekaPROM.IO.ALSA.Handle qualified as ALSA (Handle)
-import EurekaPROM.IO.ALSA.Handle qualified as Handle
+import "midi-alsa" Sound.MIDI.ALSA.Query ()
+import "midi-alsa" Sound.MIDI.ALSA.Construct ()
+
+import Control.ALSA.Discovery (PortName)
+import Control.ALSA.Discovery qualified as Discovery
+import Control.ALSA.Handle qualified as ALSA (Handle)
+import Control.ALSA.Handle qualified as Handle
 
 {-------------------------------------------------------------------------------
   Resolution

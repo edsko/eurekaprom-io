@@ -2,8 +2,8 @@
 --
 -- Intended for qualified import.
 --
--- > import EurekaPROM.IO.ALSA.Discovery qualified as Discovery
-module EurekaPROM.IO.ALSA.Discovery (
+-- > import Control.ALSA.Discovery qualified as Discovery
+module Control.ALSA.Discovery (
     -- * Definition
     Client(..)
   , ClientName
@@ -25,8 +25,8 @@ import "alsa-seq" Sound.ALSA.Sequencer.Client.Info qualified as Client.Info
 import "alsa-seq" Sound.ALSA.Sequencer.Port        qualified as Port
 import "alsa-seq" Sound.ALSA.Sequencer.Port.Info   qualified as Port.Info
 
-import EurekaPROM.IO.ALSA.Handle qualified as ALSA (Handle)
-import EurekaPROM.IO.ALSA.Handle qualified as Handle
+import Control.ALSA.Handle qualified as ALSA (Handle)
+import Control.ALSA.Handle qualified as Handle
 
 {-------------------------------------------------------------------------------
   Definition
