@@ -6,7 +6,7 @@ module App.Cmdline (
 
 import Options.Applicative
 
-import EurekaPROM.IO.ALSA qualified as ALSA
+import Control.ALSA qualified as ALSA
 
 import App.Mode.GenMealy qualified as Mode.GenMealy
 

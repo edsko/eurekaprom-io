@@ -1,6 +1,10 @@
 -- | Control the LEDs and the 7-segment display of the FCB1010
 --
--- Reference: <https://www.eurekasound.com/eurekaprom/io>.
+-- Reference: <https://www.eurekasound.com/eurekaprom/io>
+--
+-- Intended for qualified import.
+--
+-- > import EurekaPROM.IO.Output qualified as Output
 module EurekaPROM.IO.Output (
     -- * Definition
     LED(..)
@@ -14,24 +18,17 @@ module EurekaPROM.IO.Output (
     -- * General purpose functions
   , mapDisplay
   , withDisplayValue
-    -- * Toggle LEDs on the board
-  , toggleLED
-  , toggleDisplay
-  , clearDisplay
+    -- * MIDI
+  , ledToMIDI
+  , valueToMIDI
+  , displayToMIDI
   ) where
 
-import Control.Monad
-import Data.Char
+import Data.Char (ord, chr)
 import Data.Functor.Const
 import Data.Kind
 
-import "alsa-seq"  Sound.ALSA.Sequencer.Event qualified as Event
-import "midi-alsa" Sound.MIDI.ALSA.Construct ()
-
-import EurekaPROM.IO.ALSA        qualified as ALSA
-import EurekaPROM.IO.ALSA.Handle qualified as Handle
-import EurekaPROM.IO.Util
-
+import Data.IrregularEnum
 import Data.MIDI qualified as MIDI
 
 {-------------------------------------------------------------------------------
@@ -310,29 +307,3 @@ displayToMIDI val = MIDI.Message {
         , controlValue  = withDisplayValue valueToMIDI val
         }
     }
-
-{-------------------------------------------------------------------------------
-  Send MIDI messages
--------------------------------------------------------------------------------}
-
-toggleLED :: ALSA.Handle -> LED -> Bool -> IO ()
-toggleLED h led val = do
-    let ev = Event.simple (Handle.address h) eventData
-    void $ Event.outputDirect (Handle.alsa h) ev
-  where
-    eventData :: Event.Data
-    eventData = MIDI.convert' $ ledToMIDI led val
-
-toggleDisplay :: ALSA.Handle -> Display Value -> IO ()
-toggleDisplay h val = do
-    let ev = Event.simple (Handle.address h) eventData
-    void $ Event.outputDirect (Handle.alsa h) ev
-  where
-    eventData :: Event.Data
-    eventData = MIDI.convert' $ displayToMIDI val
-
-clearDisplay :: ALSA.Handle -> IO ()
-clearDisplay h = do
-    toggleDisplay h $ Leading    $ ValueLeading Nothing
-    toggleDisplay h $ TensLetter $ ValueLetter  Nothing
-    toggleDisplay h $ OnesLetter $ ValueLetter  Nothing

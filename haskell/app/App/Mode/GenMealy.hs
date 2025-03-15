@@ -4,14 +4,15 @@ import Data.Aeson (ToJSON(..))
 import Data.Aeson qualified as Aeson
 import Data.Yaml qualified as Yaml
 
-import EurekaPROM.IO.Input qualified as Input
-import EurekaPROM.IO.ALSA qualified as ALSA
-import EurekaPROM.IO.Simultaneous (simultaneous)
-import EurekaPROM.IO.Simultaneous qualified as Simultaneous
-
+import Control.ALSA.Handle qualified as ALSA (Handle)
 import Data.Mealy (Mealy)
 import Data.Mealy qualified as Mealy
 import Data.MIDI qualified as MIDI
+
+import EurekaPROM.IO.ALSA
+import EurekaPROM.IO.Input qualified as Input
+import EurekaPROM.IO.Simultaneous (simultaneous)
+import EurekaPROM.IO.Simultaneous qualified as Simultaneous
 
 {-------------------------------------------------------------------------------
   Generate Mealy machine
@@ -28,7 +29,7 @@ run mode =
     case mode of
       Exec h ->
         Mealy.exec machine Mealy.ExecEnv{
-            produceInput  = Input.wait h
+            produceInput  = waitInput h
           , processOutput = print
           , unrecognized  = warnUnrecognized
           , initialState  = Simultaneous.initDeviceState

@@ -1,61 +1,73 @@
--- | High-level utilities for working with ALSA MIDI devices
+-- | Interact with the EurekaPROM
 --
--- Intended for qualified import.
---
--- > import EurekaPROM.IO.ALSA qualified as ALSA
+-- Intended for unqualified import.
 module EurekaPROM.IO.ALSA (
-    -- * Initialization
-    ALSA.Handle -- opaque
-  , Handle.init
-    -- Resolution
-  , PortSpec(..)
-  , listPorts
-  , resolve
+    -- * Input
+    waitInput
+    -- * Output
+  , toggleLED
+  , toggleDisplay
+  , clearDisplay
   ) where
 
 import Control.Monad
+import Control.Exception
 
-import "alsa-seq" Sound.ALSA.Sequencer.Subscribe qualified as Subscribe
+import Control.ALSA qualified as ALSA ()
+import Control.ALSA.Event qualified as ALSA.Event
+import Control.ALSA.Handle qualified as ALSA (Handle)
+import Control.ALSA.Handle qualified as Handle
+import Data.MIDI qualified as MIDI
 
-import EurekaPROM.IO.ALSA.Discovery (PortName)
-import EurekaPROM.IO.ALSA.Discovery qualified as Discovery
-import EurekaPROM.IO.ALSA.Handle qualified as ALSA (Handle)
-import EurekaPROM.IO.ALSA.Handle qualified as Handle
+import EurekaPROM.IO.Input qualified as Input
+import EurekaPROM.IO.Output qualified as Output
 
 {-------------------------------------------------------------------------------
-  Resolution
+  Wait for input
 -------------------------------------------------------------------------------}
 
-data PortSpec =
-    -- | We use a single port for input and output
-    SinglePort PortName
+-- | Unexpected event
+data UnexpectedEvent =
+    -- | We could not parse the event as a MIDI message
+    UnexpectedEvent ALSA.Event.T
 
-    -- | Separate ports for input and output
-  | DualPort {
-        inputPort  :: PortName
-      , outputPort :: PortName
-      }
+    -- | Unexpected MIDI message from the FCB1010
+  | UnexpectedMessage MIDI.Message
   deriving stock (Show)
+  deriving anyclass (Exception)
 
-listPorts :: ALSA.Handle -> IO ()
-listPorts h = do
-    ports <- Discovery.getAllPorts h
-    forM_ ports $ \port ->
-      putStrLn $ Discovery.portQualifiedName port
+waitInput :: ALSA.Handle -> IO Input.Event
+waitInput h = do
+    event <- ALSA.Event.input (Handle.alsa h)
+    case MIDI.convert event of
+      Nothing  -> throwIO $ UnexpectedEvent event
+      Just msg ->
+        case Input.fromMIDI msg of
+          Nothing -> throwIO $ UnexpectedMessage msg
+          Just ev -> return ev
 
-resolve :: ALSA.Handle -> PortSpec -> IO ()
-resolve _ (SinglePort _) =
-    error "TODO: SinglePort"
-resolve h (DualPort inp out) = do
-    inp' <- Discovery.findPort h inp
-    out' <- Discovery.findPort h out
+{-------------------------------------------------------------------------------
+  Send MIDI messages
+-------------------------------------------------------------------------------}
 
-    do sub <- Subscribe.malloc
-       Subscribe.setSender sub (Discovery.portAddress inp')
-       Subscribe.setDest sub (Handle.address h)
-       Subscribe.subscribePort (Handle.alsa h) sub
+toggleLED :: ALSA.Handle -> Output.LED -> Bool -> IO ()
+toggleLED h led val = do
+    let ev = ALSA.Event.simple (Handle.address h) eventData
+    void $ ALSA.Event.outputDirect (Handle.alsa h) ev
+  where
+    eventData :: ALSA.Event.Data
+    eventData = MIDI.convert' $ Output.ledToMIDI led val
 
-    do sub <- Subscribe.malloc
-       Subscribe.setSender sub (Handle.address h)
-       Subscribe.setDest sub (Discovery.portAddress out')
-       Subscribe.subscribePort (Handle.alsa h) sub
+toggleDisplay :: ALSA.Handle -> Output.Display Output.Value -> IO ()
+toggleDisplay h val = do
+    let ev = ALSA.Event.simple (Handle.address h) eventData
+    void $ ALSA.Event.outputDirect (Handle.alsa h) ev
+  where
+    eventData :: ALSA.Event.Data
+    eventData = MIDI.convert' $ Output.displayToMIDI val
+
+clearDisplay :: ALSA.Handle -> IO ()
+clearDisplay h = do
+    toggleDisplay h $ Output.Leading    $ Output.ValueLeading Nothing
+    toggleDisplay h $ Output.TensLetter $ Output.ValueLetter  Nothing
+    toggleDisplay h $ Output.OnesLetter $ Output.ValueLetter  Nothing
