@@ -22,6 +22,7 @@ data Mode =
   | ModeDump ALSA.PortSpec
   | ModeSimEvents ALSA.PortSpec
   | ModeTestLEDs ALSA.PortSpec
+  | ModeGenMealy
   deriving stock (Show)
 
 {-------------------------------------------------------------------------------
@@ -56,6 +57,8 @@ parseMode = subparser $ mconcat [
         "Simulate keyboard and mouse events"
     , command' "test-LEDs" (ModeTestLEDs <$> parsePortSpec)
         "Test the LEDs"
+    , command' "generate-mealy" (pure ModeGenMealy)
+        "Generate Mealy machine"
     ]
 
 parsePortSpec :: Parser ALSA.PortSpec
@@ -81,6 +84,6 @@ parsePortSpec = asum [
 -------------------------------------------------------------------------------}
 
 command' :: String -> Parser a -> String -> Mod CommandFields a
-command' name p desc = command name $ info p $ mconcat [
+command' name p desc = command name $ info (p <**> helper) $ mconcat [
       progDesc desc
     ]

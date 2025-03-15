@@ -64,6 +64,10 @@ executable eurekaprom-io
   other-modules:
       App.Adaptor
       App.Cmdline
+      App.Mode.Dump
+      App.Mode.GenMealy
+      App.Mode.SimEvents
+      App.Mode.TestLEDs
 
   build-depends:
     , containers           >= 0.6  && < 0.7
