@@ -118,7 +118,6 @@ executable eurekaprom-io
   build-depends:
       -- inherited dependencies
     , aeson
-    , bytestring
     , containers
 
   build-depends:

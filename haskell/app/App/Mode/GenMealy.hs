@@ -2,8 +2,6 @@ module App.Mode.GenMealy (Cmd(..), run) where
 
 import Data.Aeson (ToJSON(..))
 import Data.Aeson qualified as Aeson
-import Data.ByteString.Lazy qualified as BS.Lazy
-import Data.Word
 import Data.Yaml qualified as Yaml
 
 import Control.ALSA.Handle qualified as ALSA (Handle)
@@ -119,6 +117,8 @@ instance ToJSON (YamlOutput [Input.Event]) where
 
 {-------------------------------------------------------------------------------
   Configure JSON output
+
+  The JSON output just records the controller number and value.
 -------------------------------------------------------------------------------}
 
 newtype JsonOutput a = JsonOutput a
@@ -128,10 +128,16 @@ instance ToJSON (JsonOutput Mealy.StateNum) where
   toJSON (JsonOutput state) = toJSON state
 
 instance ToJSON (JsonOutput Input.Event) where
-  toJSON (JsonOutput event) = toJSON $ eventToMIDI event
+  toJSON (JsonOutput inputEvent) =
+      case MIDI.messageBody $ Input.toMIDI inputEvent of
+        MIDI.MsgControl control ->
+          toJSON [
+              toJSON $ MIDI.controlNumber control
+            , toJSON $ MIDI.controlValue  control
+            ]
+        _otherwise ->
+          error "unexpected MIDI message"
 
 instance ToJSON (JsonOutput [Input.Event]) where
-  toJSON (JsonOutput events) = toJSON $ concatMap eventToMIDI events
-
-eventToMIDI :: Input.Event -> [Word8]
-eventToMIDI = BS.Lazy.unpack . MIDI.toByteString . Input.toMIDI
+  toJSON (JsonOutput outputEvents) = toJSON $
+      map (toJSON . JsonOutput) outputEvents
