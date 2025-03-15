@@ -75,10 +75,11 @@ library data
       Data.MIDI
 
   build-depends:
-    , aeson      >= 2.2 && < 2.3
-    , containers >= 0.6 && < 0.7
-    , midi       >= 0.2 && < 0.3
-    , optics     >= 0.4 && < 0.5
+    , aeson      >= 2.2  && < 2.3
+    , bytestring >= 0.11 && < 0.12
+    , containers >= 0.6  && < 0.7
+    , midi       >= 0.2  && < 0.3
+    , optics     >= 0.4  && < 0.5
 
 library
   import:           lang
@@ -117,6 +118,7 @@ executable eurekaprom-io
   build-depends:
       -- inherited dependencies
     , aeson
+    , bytestring
     , containers
 
   build-depends:

@@ -16,17 +16,21 @@ module Data.MIDI (
   , MessageBody(..)
   , Note(..)
   , Control(..)
-    -- * Utility
+    -- * Conversion
   , convert
   , convert'
+    -- * Serialization
+  , toByteString
   ) where
 
+import Data.ByteString.Lazy (LazyByteString)
 import Data.Kind
 import Data.Maybe (fromMaybe)
 import GHC.Stack
 import Optics
 
 -- We import from the @midi@ package here, but /not/ from ALSA.
+import "midi" Sound.MIDI.Message                 qualified as MIDI.Message
 import "midi" Sound.MIDI.Message.Channel         qualified as MIDI (Channel)
 import "midi" Sound.MIDI.Message.Channel         qualified as MIDI.Channel
 import "midi" Sound.MIDI.Message.Channel.Mode    qualified as MIDI.Mode
@@ -175,7 +179,7 @@ instance (Wrapped a, Wrapped b, Wrapped c) => Wrapped (a, b, c) where
       aux i1 i2 i3 (a, b, c) = (view i1 a, view i2 b, view i3 c)
 
 {-------------------------------------------------------------------------------
-  Internal auxiliary
+  Conversion
 -------------------------------------------------------------------------------}
 
 -- | Convert between MIDI representations
@@ -205,3 +209,10 @@ convert a
 -- | Like 'convert', but throw pure exception when conversion fails
 convert' :: (HasCallStack, MIDI.Query.C a, MIDI.Construct.C b) => a -> b
 convert' = fromMaybe (error "conversion failed") . convert
+
+{-------------------------------------------------------------------------------
+  Serialization
+-------------------------------------------------------------------------------}
+
+toByteString :: Message -> LazyByteString
+toByteString = MIDI.Message.toByteString . convert'
