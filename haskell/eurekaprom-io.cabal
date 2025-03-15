@@ -21,6 +21,7 @@ common lang
       DerivingVia
       DisambiguateRecordFields
       OverloadedStrings
+      PackageImports
       TypeFamilies
       UndecidableInstances
 
@@ -43,10 +44,11 @@ library
       EurekaPROM.IO.Input
       EurekaPROM.IO.Output
 
+      Data.MIDI
+
   other-modules:
       EurekaPROM.IO.ALSA.Discovery
       EurekaPROM.IO.ALSA.Handle
-      EurekaPROM.IO.ALSA.MIDI
       EurekaPROM.IO.Util
 
   build-depends:

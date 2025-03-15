@@ -25,12 +25,14 @@ import Data.Char
 import Data.Functor.Const
 import Data.Kind
 
-import Sound.ALSA.Sequencer.Event qualified as Event
+import "alsa-seq"  Sound.ALSA.Sequencer.Event qualified as Event
+import "midi-alsa" Sound.MIDI.ALSA.Construct ()
 
 import EurekaPROM.IO.ALSA        qualified as ALSA
 import EurekaPROM.IO.ALSA.Handle qualified as Handle
-import EurekaPROM.IO.ALSA.MIDI   qualified as MIDI
 import EurekaPROM.IO.Util
+
+import Data.MIDI qualified as MIDI
 
 {-------------------------------------------------------------------------------
   Preliminaries
@@ -284,8 +286,8 @@ withDisplayValue k (OnesHex    x) = k x
 
 ledToMIDI :: LED -> Bool -> MIDI.Message
 ledToMIDI led val = MIDI.Message {
-      msgChannel = 0
-    , msgBody    = MIDI.MsgControl MIDI.Control {
+      messageChannel = 0
+    , messageBody    = MIDI.MsgControl MIDI.Control {
           controlNumber = if val then 106 else 107
         , controlValue  = fromEnum led
         }
@@ -302,8 +304,8 @@ valueToMIDI (ValueHex     Nothing)  = 16
 
 displayToMIDI :: Display Value -> MIDI.Message
 displayToMIDI val = MIDI.Message {
-      msgChannel = 0
-    , msgBody    = MIDI.MsgControl MIDI.Control {
+      messageChannel = 0
+    , messageBody    = MIDI.MsgControl MIDI.Control {
           controlNumber = fromEnum $ mapDisplay (\_ -> Const ()) val
         , controlValue  = withDisplayValue valueToMIDI val
         }
@@ -319,7 +321,7 @@ toggleLED h led val = do
     void $ Event.outputDirect (Handle.alsa h) ev
   where
     eventData :: Event.Data
-    eventData = MIDI.toALSA $ ledToMIDI led val
+    eventData = MIDI.convert' $ ledToMIDI led val
 
 toggleDisplay :: ALSA.Handle -> Display Value -> IO ()
 toggleDisplay h val = do
@@ -327,7 +329,7 @@ toggleDisplay h val = do
     void $ Event.outputDirect (Handle.alsa h) ev
   where
     eventData :: Event.Data
-    eventData = MIDI.toALSA $ displayToMIDI val
+    eventData = MIDI.convert' $ displayToMIDI val
 
 clearDisplay :: ALSA.Handle -> IO ()
 clearDisplay h = do

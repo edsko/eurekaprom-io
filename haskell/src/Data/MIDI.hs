@@ -1,43 +1,46 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE TemplateHaskell  #-}
 
--- | Interface between @alsa-seq@ and @midi@, using @midi-alsa@
+-- | Idiomatic Haskell definition of MIDI messages
+--
+-- Intended for use with the @midi@ package.
+--
+-- Note: this module does /not/ have any ALSA specific functionality.
 --
 -- Intended for qualified import.
-module EurekaPROM.IO.ALSA.MIDI (
-    -- * Messages
+--
+-- > import Data.MIDI qualified as MIDI
+module Data.MIDI (
+    -- * Definition
     Message(..)
   , MessageBody(..)
   , Note(..)
   , Control(..)
-    -- * Conversion
-  , fromALSA
-  , toALSA
+    -- * Utility
+  , convert
+  , convert'
   ) where
 
 import Data.Kind
 import Data.Maybe (fromMaybe)
+import GHC.Stack
 import Optics
 
-import Sound.MIDI.ALSA.Query     ()
-import Sound.MIDI.ALSA.Construct ()
-
-import Sound.MIDI.Message.Channel         qualified as MIDI (Channel)
-import Sound.MIDI.Message.Channel         qualified as MIDI.Channel
-import Sound.MIDI.Message.Channel.Mode    qualified as MIDI.Mode
-import Sound.MIDI.Message.Channel.Voice   qualified as MIDI.Voice
-import Sound.MIDI.Message.Class.Construct qualified as MIDI.Construct
-import Sound.MIDI.Message.Class.Query     qualified as MIDI.Query
-
-import Sound.ALSA.Sequencer.Event qualified as ALSA.Event
+-- We import from the @midi@ package here, but /not/ from ALSA.
+import "midi" Sound.MIDI.Message.Channel         qualified as MIDI (Channel)
+import "midi" Sound.MIDI.Message.Channel         qualified as MIDI.Channel
+import "midi" Sound.MIDI.Message.Channel.Mode    qualified as MIDI.Mode
+import "midi" Sound.MIDI.Message.Channel.Voice   qualified as MIDI.Voice
+import "midi" Sound.MIDI.Message.Class.Construct qualified as MIDI.Construct
+import "midi" Sound.MIDI.Message.Class.Query     qualified as MIDI.Query
 
 {-------------------------------------------------------------------------------
-  More user-friendly datatype
+  Definition
 -------------------------------------------------------------------------------}
 
 data Message = Message {
-      msgChannel :: Int
-    , msgBody    :: MessageBody
+      messageChannel :: Int
+    , messageBody    :: MessageBody
     }
   deriving stock (Show)
 
@@ -63,9 +66,27 @@ data Control = Control {
     }
   deriving stock (Show)
 
+{-------------------------------------------------------------------------------
+  Lenses and prisms
+
+  Examples:
+
+  > #body     :: Lens' Message MessageBody
+  > #_MsgNote :: Prism' MessageBody Note
+-------------------------------------------------------------------------------}
+
+makeFieldLabels ''Message
+makeFieldLabels ''Note
+makeFieldLabels ''Control
+
+makePrismLabels ''Message
 makePrismLabels ''MessageBody
 makePrismLabels ''Note
 makePrismLabels ''Control
+
+{-------------------------------------------------------------------------------
+  Interop with @midi@
+-------------------------------------------------------------------------------}
 
 instance MIDI.Query.C Message where
   note            = queryWith $ #_MsgNote % #_Note
@@ -86,59 +107,20 @@ instance MIDI.Construct.C Message where
 queryWith ::
      Wrapped x
   => Prism' MessageBody (Unwrapped x) -> Message -> Maybe (MIDI.Channel, x)
-queryWith p Message{msgChannel, msgBody} =
-    (MIDI.Channel.toChannel msgChannel,) <$>
-      preview (p % re wrapped) msgBody
+queryWith p Message{messageChannel, messageBody} =
+    (MIDI.Channel.toChannel messageChannel,) <$>
+      preview (p % re wrapped) messageBody
 
 constructWith ::
      Wrapped x
   => Prism' MessageBody (Unwrapped x) -> MIDI.Channel -> x -> Message
 constructWith p channel x = Message{
-      msgChannel = MIDI.Channel.fromChannel channel
-    , msgBody    = review (p % re wrapped) x
+      messageChannel = MIDI.Channel.fromChannel channel
+    , messageBody    = review (p % re wrapped) x
     }
 
 {-------------------------------------------------------------------------------
-  Conversion utilities
--------------------------------------------------------------------------------}
-
-fromALSA :: ALSA.Event.T -> Maybe Message
-fromALSA = convert
-
-toALSA :: Message -> ALSA.Event.Data
-toALSA msg =
-    fromMaybe (error $ "toALSA: could not convert " ++ show msg) $
-      convert msg
-
-{-------------------------------------------------------------------------------
-  Internal auxiliary
--------------------------------------------------------------------------------}
-
-convert :: (MIDI.Query.C a, MIDI.Construct.C b) => a -> Maybe b
-convert a
-  | Just x <- MIDI.Query.note a
-  = Just $ uncurry MIDI.Construct.note x
-
-  | Just x <- MIDI.Query.program a
-  = Just $ uncurry MIDI.Construct.program x
-
-  | Just x <- MIDI.Query.anyController a
-  = Just $ uncurry MIDI.Construct.anyController x
-
-  | Just x <- MIDI.Query.pitchBend a
-  = Just $ uncurry MIDI.Construct.pitchBend x
-
-  | Just x <- MIDI.Query.channelPressure a
-  = Just $ uncurry MIDI.Construct.channelPressure x
-
-  | Just x <- MIDI.Query.mode a
-  = Just $ uncurry MIDI.Construct.mode x
-
-  | otherwise
-  = Nothing
-
-{-------------------------------------------------------------------------------
-  Wrapping and unwrapping MIDI types
+  Internal: Wrapping and unwrapping MIDI types
 -------------------------------------------------------------------------------}
 
 class Wrapped a where
@@ -188,3 +170,35 @@ instance (Wrapped a, Wrapped b, Wrapped c) => Wrapped (a, b, c) where
           (aux (re wrapped) (re wrapped) (re wrapped))
     where
       aux i1 i2 i3 (a, b, c) = (view i1 a, view i2 b, view i3 c)
+
+{-------------------------------------------------------------------------------
+  Internal auxiliary
+-------------------------------------------------------------------------------}
+
+-- | Convert between MIDI representations
+convert :: (MIDI.Query.C a, MIDI.Construct.C b) => a -> Maybe b
+convert a
+  | Just x <- MIDI.Query.note a
+  = Just $ uncurry MIDI.Construct.note x
+
+  | Just x <- MIDI.Query.program a
+  = Just $ uncurry MIDI.Construct.program x
+
+  | Just x <- MIDI.Query.anyController a
+  = Just $ uncurry MIDI.Construct.anyController x
+
+  | Just x <- MIDI.Query.pitchBend a
+  = Just $ uncurry MIDI.Construct.pitchBend x
+
+  | Just x <- MIDI.Query.channelPressure a
+  = Just $ uncurry MIDI.Construct.channelPressure x
+
+  | Just x <- MIDI.Query.mode a
+  = Just $ uncurry MIDI.Construct.mode x
+
+  | otherwise
+  = Nothing
+
+-- | Like 'convert', but throw pure exception when conversion fails
+convert' :: (HasCallStack, MIDI.Query.C a, MIDI.Construct.C b) => a -> b
+convert' = fromMaybe (error "conversion failed") . convert

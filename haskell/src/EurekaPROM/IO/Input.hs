@@ -13,12 +13,14 @@ module EurekaPROM.IO.Input (
 
 import Control.Exception
 
-import Sound.ALSA.Sequencer.Event qualified as Event
+import "alsa-seq"  Sound.ALSA.Sequencer.Event qualified as Event
+import "midi-alsa" Sound.MIDI.ALSA.Query ()
 
 import EurekaPROM.IO.ALSA        qualified as ALSA
 import EurekaPROM.IO.ALSA.Handle qualified as Handle
-import EurekaPROM.IO.ALSA.MIDI   qualified as MIDI
 import EurekaPROM.IO.Util
+
+import Data.MIDI qualified as MIDI
 
 {-------------------------------------------------------------------------------
   Definition
@@ -104,7 +106,7 @@ data PedalState = Press | Release
 
 toEvent :: MIDI.Message -> Maybe Event
 toEvent msg =
-    case MIDI.msgBody msg of
+    case MIDI.messageBody msg of
       MIDI.MsgControl MIDI.Control{controlNumber, controlValue} ->
         case controlNumber of
           104 ->
@@ -135,7 +137,7 @@ data UnexpectedEvent =
 wait :: ALSA.Handle -> IO Event
 wait h = do
     event <- Event.input (Handle.alsa h)
-    case MIDI.fromALSA event of
+    case MIDI.convert event of
       Nothing  -> throwIO $ UnexpectedEvent event
       Just msg ->
         case toEvent msg of
