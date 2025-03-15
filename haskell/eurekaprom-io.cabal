@@ -57,6 +57,24 @@ library control
     , alsa-seq  >= 0.6 && < 0.7
     , midi-alsa >= 0.2 && < 0.3
 
+-- Data representation
+--
+-- This library is not specific to the EurekaPROM.
+library data
+  import:         lang
+  hs-source-dirs: data
+
+  exposed-modules:
+      Data.IrregularEnum
+      Data.Mealy
+      Data.MIDI
+
+  build-depends:
+    , aeson      >= 2.2 && < 2.3
+    , containers >= 0.6 && < 0.7
+    , midi       >= 0.2 && < 0.3
+    , optics     >= 0.4 && < 0.5
+
 library
   import:           lang
   hs-source-dirs:   src
@@ -66,34 +84,14 @@ library
       OverloadedLabels
 
   exposed-modules:
-      --
-      -- General purpose data structures
-      --
-
-      Data.Mealy
-      Data.MIDI
-
-      --
-      -- EurekaPROM specific functionality
-      --
-
       EurekaPROM.IO.Input
       EurekaPROM.IO.Output
       EurekaPROM.IO.Simultaneous
 
-  other-modules:
-      EurekaPROM.IO.Util
-
   build-depends:
       -- internal dependencies
     , control
-
-  build-depends:
-      -- external dependencies
-    , aeson      >= 2.2 && < 2.3
-    , containers >= 0.6 && < 0.7
-    , midi       >= 0.2 && < 0.3
-    , optics     >= 0.4 && < 0.5
+    , data
 
 executable eurekaprom-io
   import:         lang
@@ -111,6 +109,7 @@ executable eurekaprom-io
   build-depends:
       -- internal dependencies
       control
+    , data
     , eurekaprom-io
 
   build-depends:

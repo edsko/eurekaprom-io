@@ -1,5 +1,4 @@
-module EurekaPROM.IO.Util (
-    -- * Enums
+module Data.IrregularEnum (
     IrregularEnum(..)
   , AsIrregularEnum(..)
   ) where
@@ -8,7 +7,7 @@ import Data.Typeable
 import GHC.Stack
 
 {-------------------------------------------------------------------------------
-  Enums
+  Definition
 -------------------------------------------------------------------------------}
 
 -- | Enumerations with an irregular (non-consecutive) domain
@@ -38,6 +37,10 @@ toIrregularEnum' x =
         , " out of range of "
         , show (typeRep (Proxy @a))
         ]
+
+{-------------------------------------------------------------------------------
+  Deriving-via support
+-------------------------------------------------------------------------------}
 
 newtype AsIrregularEnum a = WrapIrregularEnum {
       unwrapIrregularEnum :: a

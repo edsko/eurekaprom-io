@@ -14,11 +14,10 @@ module EurekaPROM.IO.Input (
 import Control.Exception
 
 import Control.ALSA qualified as ALSA ()
+import Control.ALSA.Event qualified as ALSA.Event
 import Control.ALSA.Handle qualified as ALSA (Handle)
 import Control.ALSA.Handle qualified as Handle
-import Control.ALSA.Event qualified as ALSA.Event
-import EurekaPROM.IO.Util
-
+import Data.IrregularEnum
 import Data.MIDI qualified as MIDI
 
 {-------------------------------------------------------------------------------
