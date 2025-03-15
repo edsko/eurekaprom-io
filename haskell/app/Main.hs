@@ -16,19 +16,37 @@ import App.Mode.TestLEDs  qualified as Mode.TestLEDs
 -------------------------------------------------------------------------------}
 
 main :: IO ()
-main = ALSA.init $ \h -> do
+main = do
     cmdline <- getCmdline
     case cmdMode cmdline of
       ModeListPorts ->
-        ALSA.listPorts h
+        ALSA.init $ \h -> do
+          ALSA.listPorts h
       ModeDump portSpec -> do
-        ALSA.resolve h portSpec
-        Mode.Dump.run h
+        ALSA.init $ \h -> do
+          ALSA.resolve h portSpec
+          Mode.Dump.run h
       ModeSimEvents portSpec -> do
-        ALSA.resolve h portSpec
-        Mode.SimEvents.run h
+        ALSA.init $ \h -> do
+          ALSA.resolve h portSpec
+          Mode.SimEvents.run h
       ModeTestLEDs portSpec -> do
-        ALSA.resolve h portSpec
-        Mode.TestLEDs.run h
-      ModeGenMealy ->
-        Mode.GenMealy.run
+        ALSA.init $ \h -> do
+          ALSA.resolve h portSpec
+          Mode.TestLEDs.run h
+      ModeGenMealy cmd ->
+        initGenMealy cmd Mode.GenMealy.run
+
+-- Avoid initializing ALSA when we just export a Mealy machine
+initGenMealy ::
+     Mode.GenMealy.Cmd ALSA.PortSpec
+  -> (Mode.GenMealy.Cmd ALSA.Handle -> IO r)
+  -> IO r
+initGenMealy (Mode.GenMealy.Exec portSpec) k =
+    ALSA.init $ \h -> do
+      ALSA.resolve h portSpec
+      k $ Mode.GenMealy.Exec h
+initGenMealy (Mode.GenMealy.Yaml fp) k =
+    k $ Mode.GenMealy.Yaml fp
+initGenMealy (Mode.GenMealy.Json fp) k =
+    k $ Mode.GenMealy.Json fp

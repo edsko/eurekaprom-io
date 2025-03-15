@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- | Monad for turning MIDI messages into input device events
 --
 -- Intended for qualified import.

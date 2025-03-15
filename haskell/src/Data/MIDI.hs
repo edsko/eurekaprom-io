@@ -36,6 +36,9 @@ import "midi" Sound.MIDI.Message.Class.Query     qualified as MIDI.Query
 
 {-------------------------------------------------------------------------------
   Definition
+
+  TODO: We should reify the MIDI control channels.
+  <https://midi.org/midi-1-0-control-change-messages>
 -------------------------------------------------------------------------------}
 
 data Message = Message {

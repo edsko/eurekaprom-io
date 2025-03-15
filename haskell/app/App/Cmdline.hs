@@ -8,6 +8,8 @@ import Options.Applicative
 
 import EurekaPROM.IO.ALSA qualified as ALSA
 
+import App.Mode.GenMealy qualified as Mode.GenMealy
+
 {-------------------------------------------------------------------------------
   Definition
 -------------------------------------------------------------------------------}
@@ -22,7 +24,7 @@ data Mode =
   | ModeDump ALSA.PortSpec
   | ModeSimEvents ALSA.PortSpec
   | ModeTestLEDs ALSA.PortSpec
-  | ModeGenMealy
+  | ModeGenMealy (Mode.GenMealy.Cmd ALSA.PortSpec)
   deriving stock (Show)
 
 {-------------------------------------------------------------------------------
@@ -57,8 +59,8 @@ parseMode = subparser $ mconcat [
         "Simulate keyboard and mouse events"
     , command' "test-LEDs" (ModeTestLEDs <$> parsePortSpec)
         "Test the LEDs"
-    , command' "generate-mealy" (pure ModeGenMealy)
-        "Generate Mealy machine"
+    , command' "generate-mealy" (ModeGenMealy <$> parseGenMeadyCmd)
+        "Generate Mealy machine."
     ]
 
 parsePortSpec :: Parser ALSA.PortSpec
@@ -77,6 +79,19 @@ parsePortSpec = asum [
                  long "port"
                , help "Port name (for both input and output)"
                ])
+    ]
+
+parseGenMeadyCmd :: Parser (Mode.GenMealy.Cmd ALSA.PortSpec)
+parseGenMeadyCmd = asum [
+      Mode.GenMealy.Exec <$> parsePortSpec
+    , Mode.GenMealy.Yaml <$> strOption (mconcat [
+          long "yaml"
+        , help "Export to human-readable .yaml format"
+        ])
+    , Mode.GenMealy.Json <$> strOption (mconcat [
+          long "json"
+        , help "Export to machine-readable .json format"
+        ])
     ]
 
 {-------------------------------------------------------------------------------

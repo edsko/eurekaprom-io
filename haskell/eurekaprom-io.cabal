@@ -20,16 +20,19 @@ common lang
       DerivingStrategies
       DerivingVia
       DisambiguateRecordFields
-      OverloadedStrings
       PackageImports
       TypeFamilies
       UndecidableInstances
+
+  other-extensions:
+      OverloadedStrings
 
   ghc-options:
       -Wall
       -Wprepositive-qualified-module
       -Wunused-packages
       -Widentities
+      -Wredundant-constraints
 
 library
   import:           lang
@@ -43,7 +46,9 @@ library
       EurekaPROM.IO.ALSA
       EurekaPROM.IO.Input
       EurekaPROM.IO.Output
+      EurekaPROM.IO.Simultaneous
 
+      Data.Mealy
       Data.MIDI
 
   other-modules:
@@ -52,10 +57,12 @@ library
       EurekaPROM.IO.Util
 
   build-depends:
-    , alsa-seq  >= 0.6 && < 0.7
-    , midi      >= 0.2 && < 0.3
-    , midi-alsa >= 0.2 && < 0.3
-    , optics    >= 0.4 && < 0.5
+    , aeson      >= 2.2 && < 2.3
+    , alsa-seq   >= 0.6 && < 0.7
+    , containers >= 0.6 && < 0.7
+    , midi       >= 0.2 && < 0.3
+    , midi-alsa  >= 0.2 && < 0.3
+    , optics     >= 0.4 && < 0.5
 
 executable eurekaprom-io
   import:         lang
@@ -72,7 +79,13 @@ executable eurekaprom-io
       App.Mode.TestLEDs
 
   build-depends:
-    , containers           >= 0.6  && < 0.7
+      -- inherited dependencies
+    , aeson
+    , containers
+
+  build-depends:
+      -- new dependencies
     , evdev                >= 2.3  && < 2.4
     , mtl                  >= 2.2  && < 2.3
     , optparse-applicative >= 0.18 && < 0.19
+    , yaml                 >= 0.11 && < 0.12
