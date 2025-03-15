@@ -11,11 +11,11 @@ module EurekaPROM.IO.ALSA.Handle (
 
 import Prelude hiding (init)
 
-import Sound.ALSA.Sequencer         qualified as ALSA
-import Sound.ALSA.Sequencer.Address qualified as Address
-import Sound.ALSA.Sequencer.Client  qualified as Client
-import Sound.ALSA.Sequencer.Port    qualified as Port
-import Sound.ALSA.Sequencer.Queue   qualified as Queue
+import "alsa-seq" Sound.ALSA.Sequencer         qualified as ALSA
+import "alsa-seq" Sound.ALSA.Sequencer.Address qualified as Address
+import "alsa-seq" Sound.ALSA.Sequencer.Client  qualified as Client
+import "alsa-seq" Sound.ALSA.Sequencer.Port    qualified as Port
+import "alsa-seq" Sound.ALSA.Sequencer.Queue   qualified as Queue
 
 data Handle = Handle {
       alsa    :: ALSA.T ALSA.DuplexMode

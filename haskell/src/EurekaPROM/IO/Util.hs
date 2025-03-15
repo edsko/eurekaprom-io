@@ -5,6 +5,7 @@ module EurekaPROM.IO.Util (
   ) where
 
 import Data.Typeable
+import GHC.Stack
 
 {-------------------------------------------------------------------------------
   Enums
@@ -41,9 +42,10 @@ toIrregularEnum' x =
 newtype AsIrregularEnum a = WrapIrregularEnum {
       unwrapIrregularEnum :: a
     }
-  deriving stock (Eq)
+  deriving newtype (Eq, Bounded, Show)
 
-instance (Typeable a, IrregularEnum a, Eq a) => Enum (AsIrregularEnum a) where
+instance (IrregularEnum a, Typeable a, Eq a, Bounded a, Show a)
+      => Enum (AsIrregularEnum a) where
   fromEnum   = fromIrregularEnum . unwrapIrregularEnum
   toEnum     = WrapIrregularEnum . toIrregularEnum'
   enumFromTo = enumFromToUsingSucc
@@ -53,10 +55,34 @@ instance (Typeable a, IrregularEnum a, Eq a) => Enum (AsIrregularEnum a) where
         Just y  -> y
         Nothing -> toIrregularEnum' . succ . fromIrregularEnum $ x
 
-  pred           = error "'pred' not defined for irregular enums"
+  pred x =
+      case guessPred x of
+        Just y | succ y == x -> y
+        _otherwise           -> searchPredUsingSucc x
+    where
+      guessPred :: AsIrregularEnum a -> Maybe (AsIrregularEnum a)
+      guessPred =
+            fmap WrapIrregularEnum
+          . toIrregularEnum
+          . pred -- this is the guess: "regular pred" (not "irregular pred")
+          . fromIrregularEnum
+          . unwrapIrregularEnum
+
   enumFrom       = error "'enumFrom' not defined for irregular enums"
   enumFromThen   = error "'enumFromThen' not defined for irregular enums"
   enumFromThenTo = error "'enumFromThenTo' not defined for irregular enums"
+
+searchPredUsingSucc :: forall a.
+     (HasCallStack, Eq a, Enum a, Bounded a, Show a)
+  => a -> a
+searchPredUsingSucc x = go [minBound .. maxBound]
+  where
+    go :: [a] -> a
+    go (a:b:cs)
+          | b == x    = a
+          | otherwise = go (b:cs)
+    go _otherwise = error $ "could not find predecessor of " ++ show x
+
 
 enumFromToUsingSucc :: (Eq a, Enum a) => a -> a -> [a]
 enumFromToUsingSucc x y =

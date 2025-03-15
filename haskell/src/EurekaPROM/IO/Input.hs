@@ -29,7 +29,7 @@ import Data.MIDI qualified as MIDI
 data Event =
     EventPedal Pedal PedalState
   | EventExpr  Expr  Int
-  deriving stock (Show)
+  deriving stock (Show, Eq, Ord)
 
 data Pedal =
     Pedal1
@@ -102,7 +102,7 @@ instance IrregularEnum Expr where
   toIrregularEnum _   = Nothing
 
 data PedalState = Press | Release
-  deriving stock (Show)
+  deriving stock (Show, Eq, Ord)
 
 toEvent :: MIDI.Message -> Maybe Event
 toEvent msg =

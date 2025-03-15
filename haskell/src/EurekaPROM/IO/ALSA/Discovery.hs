@@ -19,11 +19,11 @@ module EurekaPROM.IO.ALSA.Discovery (
 import Control.Exception
 import Data.List (isInfixOf)
 
-import Sound.ALSA.Sequencer.Address     qualified as Address
-import Sound.ALSA.Sequencer.Client      qualified as Client
-import Sound.ALSA.Sequencer.Client.Info qualified as Client.Info
-import Sound.ALSA.Sequencer.Port        qualified as Port
-import Sound.ALSA.Sequencer.Port.Info   qualified as Port.Info
+import "alsa-seq" Sound.ALSA.Sequencer.Address     qualified as Address
+import "alsa-seq" Sound.ALSA.Sequencer.Client      qualified as Client
+import "alsa-seq" Sound.ALSA.Sequencer.Client.Info qualified as Client.Info
+import "alsa-seq" Sound.ALSA.Sequencer.Port        qualified as Port
+import "alsa-seq" Sound.ALSA.Sequencer.Port.Info   qualified as Port.Info
 
 import EurekaPROM.IO.ALSA.Handle qualified as ALSA (Handle)
 import EurekaPROM.IO.ALSA.Handle qualified as Handle

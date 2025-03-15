@@ -15,7 +15,7 @@ module EurekaPROM.IO.ALSA (
 
 import Control.Monad
 
-import Sound.ALSA.Sequencer.Subscribe qualified as Subscribe
+import "alsa-seq" Sound.ALSA.Sequencer.Subscribe qualified as Subscribe
 
 import EurekaPROM.IO.ALSA.Discovery (PortName)
 import EurekaPROM.IO.ALSA.Discovery qualified as Discovery
