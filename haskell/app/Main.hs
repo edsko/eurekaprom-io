@@ -1,7 +1,5 @@
 module Main (main) where
 
-import Evdev.Uinput qualified as Uinput ()
-
 import Control.ALSA qualified as ALSA
 import Control.ALSA.Handle qualified as ALSA (Handle)
 import Control.ALSA.Handle qualified as Handle

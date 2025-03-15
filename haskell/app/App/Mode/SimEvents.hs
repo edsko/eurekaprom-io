@@ -5,11 +5,13 @@ import Control.Monad.IO.Class
 import Data.Map (Map)
 import Data.Map qualified as Map
 
-import Evdev.Codes  qualified as Codes
+import Evdev.Codes qualified as Codes
 import Evdev.Uinput qualified as Uinput ()
 
 import Control.ALSA.Handle qualified as ALSA (Handle)
+
 import EurekaPROM.IO.Input qualified as Input
+import EurekaPROM.IO.ALSA
 
 import App.Adaptor qualified as Adaptor
 
@@ -24,7 +26,7 @@ import App.Adaptor qualified as Adaptor
 
 run :: ALSA.Handle -> IO ()
 run h = Adaptor.run $ forever $ do
-    ev <- liftIO $ Input.wait h
+    ev <- liftIO $ waitInput h
     case ev of
       Input.EventPedal pedal Input.Press ->
         Adaptor.writeInputEvents $ Map.findWithDefault [] pedal noteOnMap

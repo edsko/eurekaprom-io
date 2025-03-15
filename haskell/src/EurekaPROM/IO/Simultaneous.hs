@@ -10,10 +10,10 @@ module EurekaPROM.IO.Simultaneous (
   , simultaneous
   ) where
 
-import EurekaPROM.IO.Input
-
 import Data.Mealy (Mealy)
 import Data.Mealy qualified as Mealy
+
+import EurekaPROM.IO.Input
 
 {-------------------------------------------------------------------------------
   State

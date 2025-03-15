@@ -4,19 +4,15 @@
 --
 -- > import EurekaPROM.IO.Input qualified as Input
 module EurekaPROM.IO.Input (
+    -- * Definition
     Event(..)
   , Pedal(..)
   , PedalState(..)
   , Expr(..)
-  , wait
+    -- * MIDI
+  , fromMIDI
   ) where
 
-import Control.Exception
-
-import Control.ALSA qualified as ALSA ()
-import Control.ALSA.Event qualified as ALSA.Event
-import Control.ALSA.Handle qualified as ALSA (Handle)
-import Control.ALSA.Handle qualified as Handle
 import Data.IrregularEnum
 import Data.MIDI qualified as MIDI
 
@@ -102,8 +98,12 @@ instance IrregularEnum Expr where
 data PedalState = Press | Release
   deriving stock (Show, Eq, Ord)
 
-toEvent :: MIDI.Message -> Maybe Event
-toEvent msg =
+{-------------------------------------------------------------------------------
+  MIDI
+-------------------------------------------------------------------------------}
+
+fromMIDI :: MIDI.Message -> Maybe Event
+fromMIDI msg =
     case MIDI.messageBody msg of
       MIDI.MsgControl MIDI.Control{controlNumber, controlValue} ->
         case controlNumber of
@@ -117,27 +117,3 @@ toEvent msg =
             Nothing
       _otherwise ->
         Nothing
-
-{-------------------------------------------------------------------------------
-  Wait for input
--------------------------------------------------------------------------------}
-
--- | Unexpected event
-data UnexpectedEvent =
-    -- | We could not parse the event as a MIDI message
-    UnexpectedEvent ALSA.Event.T
-
-    -- | Unexpected MIDI message from the FCB1010
-  | UnexpectedMessage MIDI.Message
-  deriving stock (Show)
-  deriving anyclass (Exception)
-
-wait :: ALSA.Handle -> IO Event
-wait h = do
-    event <- ALSA.Event.input (Handle.alsa h)
-    case MIDI.convert event of
-      Nothing  -> throwIO $ UnexpectedEvent event
-      Just msg ->
-        case toEvent msg of
-          Nothing -> throwIO $ UnexpectedMessage msg
-          Just ev -> return ev

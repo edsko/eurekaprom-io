@@ -84,6 +84,7 @@ library
       OverloadedLabels
 
   exposed-modules:
+      EurekaPROM.IO.ALSA
       EurekaPROM.IO.Input
       EurekaPROM.IO.Output
       EurekaPROM.IO.Simultaneous
