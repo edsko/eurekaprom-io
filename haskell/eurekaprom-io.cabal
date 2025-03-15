@@ -1,13 +1,14 @@
-cabal-version:      3.0
-name:               eurekaprom-io
-version:            0.1.0
-synopsis:           Interface to the EurekaPROM in IO mode
-license:            BSD-3-Clause
-license-file:       LICENSE
-author:             Edsko de Vries
-maintainer:         edsko@well-typed.com
-build-type:         Simple
-extra-doc-files:    CHANGELOG.md
+cabal-version:   3.0
+name:            eurekaprom-io
+version:         0.1.0
+synopsis:        Interface to the EurekaPROM in IO mode
+license:         BSD-3-Clause
+license-file:    LICENSE
+author:          Edsko de Vries
+maintainer:      edsko@well-typed.com
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+tested-with:     GHC ==9.4.8
 
 common lang
   build-depends:    base >= 4.16 && < 5
@@ -64,6 +65,10 @@ library data
   import:         lang
   hs-source-dirs: data
 
+  other-extensions:
+      TemplateHaskell
+      OverloadedLabels
+
   exposed-modules:
       Data.IrregularEnum
       Data.Mealy
@@ -78,10 +83,6 @@ library data
 library
   import:           lang
   hs-source-dirs:   src
-
-  other-extensions:
-      TemplateHaskell
-      OverloadedLabels
 
   exposed-modules:
       EurekaPROM.IO.ALSA
@@ -124,3 +125,23 @@ executable eurekaprom-io
     , mtl                  >= 2.2  && < 2.3
     , optparse-applicative >= 0.18 && < 0.19
     , yaml                 >= 0.11 && < 0.12
+
+test-suite test-eurekaprom-io
+  import:         lang
+  main-is:        Main.hs
+  hs-source-dirs: test
+  type:           exitcode-stdio-1.0
+
+  other-modules:
+    Test.EurekaPROM.IO.Arbitrary
+    Test.EurekaPROM.IO.Input
+
+  build-depends:
+      -- internal dependencies
+    , eurekaprom-io
+
+  build-depends:
+      -- new dependencies
+    , QuickCheck       >= 2.15 && < 2.16
+    , tasty            >= 1.5  && < 1.6
+    , tasty-quickcheck >= 0.11 && < 0.12

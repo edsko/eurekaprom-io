@@ -11,6 +11,7 @@ module EurekaPROM.IO.Input (
   , Expr(..)
     -- * MIDI
   , fromMIDI
+  , toMIDI
   ) where
 
 import Data.IrregularEnum
@@ -96,7 +97,7 @@ instance IrregularEnum Expr where
   toIrregularEnum _   = Nothing
 
 data PedalState = Press | Release
-  deriving stock (Show, Eq, Ord)
+  deriving stock (Show, Eq, Ord, Bounded, Enum)
 
 {-------------------------------------------------------------------------------
   MIDI
@@ -117,3 +118,21 @@ fromMIDI msg =
             Nothing
       _otherwise ->
         Nothing
+
+toMIDI :: Event -> MIDI.Message
+toMIDI event = MIDI.Message {
+      messageChannel = 0
+    , messageBody    = MIDI.MsgControl $
+        case event of
+          EventPedal pedal state -> MIDI.Control {
+              controlNumber =
+                case state of
+                  Press   -> 104
+                  Release -> 105
+            , controlValue = fromIrregularEnum pedal
+            }
+          EventExpr expr value -> MIDI.Control {
+              controlNumber = fromIrregularEnum expr
+            , controlValue  = value
+            }
+    }
