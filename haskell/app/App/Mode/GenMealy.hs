@@ -1,6 +1,8 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module App.Mode.GenMealy (Cmd(..), run) where
 
-import Data.Aeson (ToJSON(..))
+import Data.Aeson (ToJSON(..), object, (.=))
 import Data.Aeson qualified as Aeson
 import Data.Yaml qualified as Yaml
 
@@ -56,8 +58,8 @@ run mode =
 data SustainState = SustainReleased | SustainPressed
   deriving stock (Show, Eq, Ord)
 
-sustain :: Mealy SustainState Input.Event MIDI.Message
-sustain = Mealy.fromTransitions [
+_sustain :: Mealy SustainState Input.Event MIDI.Message
+_sustain = Mealy.fromTransitions [
       Mealy.Transition {
           from   = SustainReleased
         , input  = Input.EventPedal Input.Pedal1 Input.Press
@@ -84,36 +86,61 @@ sustain = Mealy.fromTransitions [
         }
     ]
 
+
 {-------------------------------------------------------------------------------
   Configure YAML output
 -------------------------------------------------------------------------------}
 
+toYaml :: ToJSON (YamlOutput a) => a -> Yaml.Value
+toYaml = toJSON . YamlOutput
+
 newtype YamlOutput a = YamlOutput a
   deriving stock (Eq, Ord)
+
+instance ToJSON (YamlOutput a) => ToJSON (YamlOutput [a]) where
+  toJSON (YamlOutput xs) = toJSON (map toYaml xs)
 
 instance ToJSON (YamlOutput Simultaneous.DeviceState) where
   toJSON (YamlOutput state) =
       case state of
-        Simultaneous.NoPedalsPressed ->
-          toJSON "no pedals pressed"
-        Simultaneous.OnePedalPressed pedal1 ->
-          toJSON $ "pressed: " ++ show pedal1
-        Simultaneous.TwoPedalsPressed pedal1 pedal2 ->
-          toJSON $ "pressed: " ++ show pedal1 ++ " and " ++ show pedal2
+        Simultaneous.StateNoPedals -> object [
+            "pedals" .= toYaml ([] :: [Input.Pedal])
+          ]
+        Simultaneous.StateOnePedal onePedal ->
+          toYaml onePedal
+        Simultaneous.StateTwoPedals twoPedals ->
+          toYaml twoPedals
+
+instance ToJSON (YamlOutput Simultaneous.OnePedalPressed) where
+  toJSON (YamlOutput onePedal) = object [
+        "pedals"    .= toYaml [pedal]
+      , "notified1" .= notified
+      ]
+    where
+      Simultaneous.OnePedalPressed pedal notified = onePedal
+
+instance ToJSON (YamlOutput Simultaneous.TwoPedalsPressed) where
+  toJSON (YamlOutput twoPedals) = object [
+        "pedals"    .= toYaml [pedal1, pedal2]
+      , "notified1" .= notified1
+      ]
+    where
+      Simultaneous.TwoPedalsPressed pedal1 pedal2 notified1 = twoPedals
 
 instance ToJSON (YamlOutput Input.Event) where
   toJSON (YamlOutput inputEvent) =
       case inputEvent of
-        Input.EventPedal pedal Input.Press ->
-          toJSON $ "press " ++ show pedal
-        Input.EventPedal pedal Input.Release ->
-          toJSON $ "release " ++ show pedal
+        Input.EventPedal pedal Input.Press -> object [
+            "press" .= toYaml pedal
+          ]
+        Input.EventPedal pedal Input.Release -> object [
+            "release" .= toYaml pedal
+          ]
         Input.EventExpr{} ->
-          error "TODO"
+          error "unimplemented"
 
-instance ToJSON (YamlOutput [Input.Event]) where
-  toJSON (YamlOutput outputEvents) = toJSON $
-      map (toJSON . YamlOutput) outputEvents
+instance ToJSON (YamlOutput Input.Pedal) where
+  toJSON (YamlOutput pedal) = toJSON $ show pedal
 
 {-------------------------------------------------------------------------------
   Configure JSON output
