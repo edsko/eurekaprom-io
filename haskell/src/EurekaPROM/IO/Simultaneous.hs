@@ -68,7 +68,7 @@ initDeviceState = StateNoPedals
 simultaneous :: Mealy DeviceState Event [Event]
 simultaneous = Mealy.fromTransitions $ concat [
       --
-      -- The simple cases: one pedal only
+      -- The simple cases: transitioning from and to 'StateOnePedal'
       --
       concat [
         [ Mealy.Transition {
@@ -103,54 +103,16 @@ simultaneous = Mealy.fromTransitions $ concat [
       ]
 
       --
-      -- The complicated cases: multiple pedals
+      -- Transitioning /into/ 'TwoPedalsPressed'
       --
-      -- The behaviour of the device for simultaneous pedal presses depends on
-      -- which pedals are pressed.
+      -- This can only happen when @pedal2 > pedal1@, otherwise the pedal
+      -- press is invisible.
       --
       -- Side note: the @(<)@ order is determined by the numerical value of the
       -- pedal (so: 'Pedal10', 'Pedal1', .., 'Pedal9', 'PedalUp', 'PedalDown').
       --
-      -- * Case 1: @pedal1 < pedal2@, @pedal2@ released before @pedal1@
-      --
-      -- > action          | input event
-      -- > --------------- | -------------------------
-      -- > press   pedal1  | EventPedal pedal1 Press
-      -- > press   pedal2  | EventPedal pedal2 Press
-      -- > release pedal2  | EventPedal pedal1 Press
-      -- > release pedal1  | EventPedal pedal1 Release
-      --
-      -- Only the third event needs to be corrected here:
-      --
-      -- > action          | output events
-      -- > --------------- | -----------------------------
-      -- > press   pedal1  | [ EventPedal pedal1 Press   ]
-      -- > press   pedal2  | [ EventPedal pedal2 Press   ]
-      -- > release pedal2  | [ EventPedal pedal2 Release ]
-      -- > release pedal1  | [ EventPedal pedal1 Release ]
-      --
-      -- * Case 2: @pedal1 < pedal2@, @pedal1@ released before @pedal2@
-      --
-      -- > action          | input event
-      -- > --------------- | -------------------------
-      -- > press   pedal1  | EventPedal pedal1 Press
-      -- > press   pedal2  | EventPedal pedal2 Press
-      -- > release pedal1  | <nothing>
-      -- > release pedal2  | EventPedal pedal2 Release
-      --
-      -- Since we get no event at all when we release @pedal1@, we can only
-      -- correct the event when we release @pedal2@:
-      --
-      -- > action          | output events
-      -- > --------------- | ---------------------------
-      -- > press   pedal1  | [ EventPedal pedal1 Press ]
-      -- > press   pedal2  | [ EventPedal pedal2 Press ]
-      -- > release pedal1  | []
-      -- > release pedal2  | [ EventPedal pedal1 Release
-      -- >                 | , EventPedal pedal2 Release
-      -- >                 | ]
-    , concat [
-        [ Mealy.Transition {
+
+    , [ Mealy.Transition {
             from   = StateOnePedal OnePedalPressed{
                          pedalPressed  = pedal1
                        , pedalNotified = notified1
@@ -163,7 +125,49 @@ simultaneous = Mealy.fromTransitions $ concat [
           , input  = EventPedal pedal2 Press
           , output = [ EventPedal pedal2 Press ]
           }
-        , Mealy.Transition {
+      | pedal1 <- allPedals
+      , pedal2 <- allPedals
+      , fromEnum pedal1 < fromEnum pedal2
+      , notified1 <- [True, False]
+      ]
+
+      --
+      -- Transitioning /from/ 'TwoPedalsPressed'
+      --
+      -- This is where things get messy.
+      --
+      -- * Case 1: @pedal1 < pedal2@, @pedal2@ released before @pedal1@
+      --
+      -- > action          | input event
+      -- > --------------- | -------------------------
+      -- > release pedal2  | EventPedal pedal1 Press
+      -- > release pedal1  | EventPedal pedal1 Release
+      --
+      -- The first release event needs to be corrected here:
+      --
+      -- > action          | output events
+      -- > --------------- | -----------------------------
+      -- > release pedal2  | [ EventPedal pedal2 Release ]
+      -- > release pedal1  | [ EventPedal pedal1 Release ]
+      --
+      -- * Case 2: @pedal1 < pedal2@, @pedal1@ released before @pedal2@
+      --
+      -- > action          | input event
+      -- > --------------- | -------------------------
+      -- > release pedal1  | <nothing>
+      -- > release pedal2  | EventPedal pedal2 Release
+      --
+      -- Since we get no event at all when we release @pedal1@, we can only
+      -- correct the event when we release @pedal2@:
+      --
+      -- > action          | output events
+      -- > --------------- | ---------------------------
+      -- > release pedal1  | []
+      -- > release pedal2  | [ EventPedal pedal1 Release
+      -- >                 | , EventPedal pedal2 Release
+      -- >                 | ]
+    , concat [
+        [ Mealy.Transition {
             from   = StateTwoPedals TwoPedalsPressed{
                           pedalPressed1  = pedal1
                         , pedalPressed2  = pedal2
@@ -196,6 +200,38 @@ simultaneous = Mealy.fromTransitions $ concat [
       , notified1 <- [True, False]
       ]
 
+      -- * Case 2(b)
+      --
+      -- There is another possibility: when we see a /third/ pedal pressed while
+      -- we thought two pedals are already pressed. This must mean one of those
+      -- two pedals must have been released (assuming only two feet); since we
+      -- would have received a release event for @pedal2@, it must be @pedal1@.
+    , [ Mealy.Transition{
+           from   = StateTwoPedals TwoPedalsPressed{
+                        pedalPressed1  = pedal1
+                      , pedalPressed2  = pedal2
+                      , pedalNotified1 = notified1
+                      }
+         , to     = StateTwoPedals TwoPedalsPressed{
+                        pedalPressed1  = pedal2
+                      , pedalPressed2  = pedal3
+                      , pedalNotified1 = True
+                      }
+         , input  = EventPedal pedal3 Press
+         , output = concat [
+               [ EventPedal pedal1 Release | notified1 ]
+             , [ EventPedal pedal3 Press   ]
+             ]
+         }
+      | pedal1 <- allPedals
+      , pedal2 <- allPedals
+      , pedal3 <- allPedals
+      , fromEnum pedal1 < fromEnum pedal2
+      , fromEnum pedal2 < fromEnum pedal3
+      , notified1 <- [True, False]
+      ]
+
+
       -- * Case 3: @pedal1 > pedal2@, @pedal2@ released before @pedal1@.
       --
       -- In this case we get no events for @pedal2@ press or release.
@@ -224,20 +260,18 @@ simultaneous = Mealy.fromTransitions $ concat [
       -- > press pedal2   | []
       -- > release pedal1 | [ EventPedal pedal1 Release ]
       -- > release pedal2 | []
-    , concat [
-        [ Mealy.Transition {
-             from   = StateOnePedal OnePedalPressed{
-                          pedalPressed  = pedal1
-                        , pedalNotified = notified1
-                        }
-           , to     = StateOnePedal OnePedalPressed{
-                          pedalPressed  = pedal2
-                        , pedalNotified = False
-                        }
-           , input  = EventPedal pedal2 Press        -- Case 4
-           , output = [ EventPedal pedal1 Release ]
-           }
-        ]
+    , [ Mealy.Transition {
+           from   = StateOnePedal OnePedalPressed{
+                        pedalPressed  = pedal1
+                      , pedalNotified = notified1
+                      }
+         , to     = StateOnePedal OnePedalPressed{
+                        pedalPressed  = pedal2
+                      , pedalNotified = False
+                      }
+         , input  = EventPedal pedal2 Press        -- Case 4
+         , output = [ EventPedal pedal1 Release ]
+         }
       | pedal1 <- allPedals
       , pedal2 <- allPedals
       , fromEnum pedal1 > fromEnum pedal2
