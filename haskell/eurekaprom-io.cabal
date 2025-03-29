@@ -31,7 +31,6 @@ common lang
   ghc-options:
       -Wall
       -Wprepositive-qualified-module
-      -Wunused-packages
       -Widentities
       -Wredundant-constraints
 
@@ -96,6 +95,21 @@ library
     , control
     , data
 
+library app-common
+  import:         lang
+  hs-source-dirs: app-common
+
+  exposed-modules:
+      App.Common.Cmdline
+
+  build-depends:
+      -- internal dependencies
+    , control
+
+  build-depends:
+      -- new dependencies
+    , optparse-applicative >= 0.18 && < 0.19
+
 executable eurekaprom-io
   import:         lang
   main-is:        Main.hs
@@ -111,7 +125,8 @@ executable eurekaprom-io
 
   build-depends:
       -- internal dependencies
-      control
+    , app-common
+    , control
     , data
     , eurekaprom-io
 
@@ -119,30 +134,52 @@ executable eurekaprom-io
       -- inherited dependencies
     , aeson
     , containers
+    , optparse-applicative
 
   build-depends:
       -- new dependencies
-    , evdev                >= 2.3  && < 2.4
-    , mtl                  >= 2.2  && < 2.3
-    , optparse-applicative >= 0.18 && < 0.19
-    , yaml                 >= 0.11 && < 0.12
+    , evdev >= 2.3  && < 2.4
+    , mtl   >= 2.2  && < 2.3
+    , yaml  >= 0.11 && < 0.12
 
 test-suite test-eurekaprom-io
   import:         lang
   main-is:        Main.hs
   hs-source-dirs: test
   type:           exitcode-stdio-1.0
+  build-depends:  eurekaprom-io
 
   other-modules:
     Test.EurekaPROM.IO.Arbitrary
     Test.EurekaPROM.IO.Input
 
   build-depends:
-      -- internal dependencies
-    , eurekaprom-io
-
-  build-depends:
       -- new dependencies
     , QuickCheck       >= 2.15 && < 2.16
     , tasty            >= 1.5  && < 1.6
     , tasty-quickcheck >= 0.11 && < 0.12
+
+test-suite test-mealy
+  import:         lang
+  main-is:        Main.hs
+  hs-source-dirs: test-mealy
+  type:           exitcode-stdio-1.0
+  ghc-options:    -Wno-orphans
+
+  other-modules:
+    Test.Mealy.SUT
+
+  build-depends:
+      -- internal dependencies
+    , app-common
+    , control
+    , data
+    , eurekaprom-io
+
+  build-depends:
+      -- new dependencies
+    , mtl                 >= 2.2  && < 2.3
+    , quickcheck-dynamic  >= 3.4  && < 3.5
+    , quickcheck-lockstep >= 0.6  && < 0.7
+    , tasty               >= 1.5  && < 1.6
+    , tasty-quickcheck    >= 0.11 && < 0.12

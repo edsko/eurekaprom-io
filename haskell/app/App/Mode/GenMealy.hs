@@ -44,7 +44,7 @@ run mode =
         Aeson.encodeFile fp $
           Mealy.wrap JsonOutput $ Mealy.encodeState machine
   where
-    machine :: Mealy Simultaneous.DeviceState Input.Event [Input.Event]
+    machine :: Simultaneous.MealyMachine
     machine = simultaneous
 
     warnUnrecognized :: Simultaneous.DeviceState -> Input.Event -> IO ()

@@ -19,6 +19,7 @@ module Data.Mealy (
   , StateNum(..)
   , encodeState
     -- * Execution
+  , step
   , ExecEnv(..)
   , exec
   ) where
@@ -135,6 +136,9 @@ encodeState machine =
   Execution
 -------------------------------------------------------------------------------}
 
+step :: (Ord i, Ord s) => Mealy s i o -> (s, i) -> Maybe (s, o)
+step machine (s, i) = Map.lookup (s, i) (transitions machine)
+
 -- | Execution environment for Mealy machine
 data ExecEnv m s i o = ExecEnv {
       produceInput  :: m i
@@ -156,9 +160,9 @@ exec machine env =
           return ()
         else do
           i <- produceInput env
-          case Map.lookup (s, i) (transitions machine) of
+          case step machine (s, i) of
             Nothing      -> unrecognized env s i >> go s
-            Just (s', o) -> processOutput env o      >> go s'
+            Just (s', o) -> processOutput env o  >> go s'
 
 {-------------------------------------------------------------------------------
   JSON

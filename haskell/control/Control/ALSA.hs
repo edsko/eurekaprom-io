@@ -28,13 +28,19 @@ import Control.ALSA.Handle qualified as Handle
 
 data PortSpec =
     -- | We use a single port for input and output
-    SinglePort PortName
+    PortDuplex PortName
 
     -- | Separate ports for input and output
-  | DualPort {
+  | PortDual {
         inputPort  :: PortName
       , outputPort :: PortName
       }
+
+    -- | Configure for input only
+  | PortInputOnly PortName
+
+    -- | Configure for output only
+  | PortOutputOnly PortName
   deriving stock (Show)
 
 listPorts :: ALSA.Handle -> IO ()
@@ -44,18 +50,20 @@ listPorts h = do
       putStrLn $ Discovery.portQualifiedName port
 
 resolve :: ALSA.Handle -> PortSpec -> IO ()
-resolve _ (SinglePort _) =
-    error "TODO: SinglePort"
-resolve h (DualPort inp out) = do
+resolve _ (PortDuplex _) =
+    error "TODO: PortDuplex"
+resolve h (PortInputOnly inp) = do
     inp' <- Discovery.findPort h inp
+    sub  <- Subscribe.malloc
+    Subscribe.setSender sub (Discovery.portAddress inp')
+    Subscribe.setDest sub (Handle.address h)
+    Subscribe.subscribePort (Handle.alsa h) sub
+resolve h (PortOutputOnly out) = do
     out' <- Discovery.findPort h out
-
-    do sub <- Subscribe.malloc
-       Subscribe.setSender sub (Discovery.portAddress inp')
-       Subscribe.setDest sub (Handle.address h)
-       Subscribe.subscribePort (Handle.alsa h) sub
-
-    do sub <- Subscribe.malloc
-       Subscribe.setSender sub (Handle.address h)
-       Subscribe.setDest sub (Discovery.portAddress out')
-       Subscribe.subscribePort (Handle.alsa h) sub
+    sub  <- Subscribe.malloc
+    Subscribe.setSender sub (Handle.address h)
+    Subscribe.setDest sub (Discovery.portAddress out')
+    Subscribe.subscribePort (Handle.alsa h) sub
+resolve h (PortDual inp out) = do
+    resolve h (PortInputOnly  inp)
+    resolve h (PortOutputOnly out)

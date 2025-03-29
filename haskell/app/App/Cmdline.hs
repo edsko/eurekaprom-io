@@ -8,6 +8,7 @@ import Options.Applicative
 
 import Control.ALSA qualified as ALSA
 
+import App.Common.Cmdline
 import App.Mode.GenMealy qualified as Mode.GenMealy
 
 {-------------------------------------------------------------------------------
@@ -61,24 +62,6 @@ parseMode = subparser $ mconcat [
         "Test the LEDs"
     , command' "generate-mealy" (ModeGenMealy <$> parseGenMeadyCmd)
         "Generate Mealy machine."
-    ]
-
-parsePortSpec :: Parser ALSA.PortSpec
-parsePortSpec = asum [
-      pure ALSA.DualPort
-        <*> (strOption $ mconcat [
-                long "input-port"
-              , help "Input port"
-              ])
-        <*> (strOption $ mconcat [
-                long "output-port"
-              , help "Output port"
-              ])
-    , pure ALSA.SinglePort
-        <*> (strOption $ mconcat [
-                 long "port"
-               , help "Port name (for both input and output)"
-               ])
     ]
 
 parseGenMeadyCmd :: Parser (Mode.GenMealy.Cmd ALSA.PortSpec)

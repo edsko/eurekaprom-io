@@ -20,18 +20,18 @@ main = do
     cmdline <- getCmdline
     case cmdMode cmdline of
       ModeListPorts ->
-        Handle.init $ \h -> do
+        Handle.with $ \h -> do
           ALSA.listPorts h
       ModeDump portSpec -> do
-        Handle.init $ \h -> do
+        Handle.with $ \h -> do
           ALSA.resolve h portSpec
           Mode.Dump.run h
       ModeSimEvents portSpec -> do
-        Handle.init $ \h -> do
+        Handle.with $ \h -> do
           ALSA.resolve h portSpec
           Mode.SimEvents.run h
       ModeTestLEDs portSpec -> do
-        Handle.init $ \h -> do
+        Handle.with $ \h -> do
           ALSA.resolve h portSpec
           Mode.TestLEDs.run h
       ModeGenMealy cmd ->
@@ -43,7 +43,7 @@ initGenMealy ::
   -> (Mode.GenMealy.Cmd ALSA.Handle -> IO r)
   -> IO r
 initGenMealy (Mode.GenMealy.Exec portSpec) k =
-    Handle.init $ \h -> do
+    Handle.with $ \h -> do
       ALSA.resolve h portSpec
       k $ Mode.GenMealy.Exec h
 initGenMealy (Mode.GenMealy.Yaml fp) k =

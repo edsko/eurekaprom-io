@@ -6,10 +6,13 @@
 -- > import Control.ALSA.Handle qualified as Handle
 module Control.ALSA.Handle (
     Handle(..)
-  , init
+  , open
+  , close
+  , with
   ) where
 
 import Prelude hiding (init)
+import Control.Exception
 
 import "alsa-seq" Sound.ALSA.Sequencer         qualified as ALSA
 import "alsa-seq" Sound.ALSA.Sequencer.Address qualified as Address
@@ -25,19 +28,27 @@ data Handle = Handle {
     , queue   :: Queue.T
     }
 
-init :: (Handle -> IO a) -> IO a
-init k =
-    ALSA.withDefault ALSA.Block                      $ \alsa  ->
-    Port.withSimple alsa "default" portCaps portType $ \port  ->
-    Queue.withNamed alsa "default"                   $ \queue ->
-    do
-      Client.setName alsa "eurekaprom-io"
-      client <- Client.getId alsa
-      let address = Address.Cons {
-              client = client
-            , port   = port
-            }
-      k Handle{alsa, client, port, address, queue}
+open :: IO Handle
+open = do
+    -- Open handle
+    alsa <- ALSA.openDefault ALSA.Block
+
+    -- Configure client
+    Client.setName alsa "eurekaprom-io"
+    client <- Client.getId alsa
+
+    -- Create default port
+    port <- Port.createSimple alsa "default" portCaps portType
+    let address = Address.Cons {
+            client = client
+          , port   = port
+          }
+
+    -- Create default queue
+    queue <- Queue.allocNamed alsa "default"
+
+    -- Done
+    return Handle{alsa, client, port, address, queue}
   where
     portCaps :: Port.Cap
     portCaps = Port.caps [
@@ -53,3 +64,14 @@ init k =
 
     portType :: Port.Type
     portType = Port.typeMidiGeneric
+
+
+close :: Handle -> IO ()
+close Handle{alsa, port, queue} = do
+    -- Release in opposite order
+    Queue.free alsa queue
+    Port.deleteSimple alsa port
+    ALSA.close alsa
+
+with :: (Handle -> IO a) -> IO a
+with = bracket open close

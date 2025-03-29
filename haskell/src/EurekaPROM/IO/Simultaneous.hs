@@ -5,7 +5,8 @@
 -- > import EurekaPROM.IO.Simultaneous (simultaneous)
 -- > import EurekaPROM.IO.Simultaneous qualified as Simultaneous
 module EurekaPROM.IO.Simultaneous (
-    DeviceState(..)
+    MealyMachine
+  , DeviceState(..)
   , OnePedalPressed(..)
   , TwoPedalsPressed(..)
   , initDeviceState
@@ -65,7 +66,9 @@ initDeviceState = StateNoPedals
   Mealy machine
 -------------------------------------------------------------------------------}
 
-simultaneous :: Mealy DeviceState Event [Event]
+type MealyMachine = Mealy DeviceState Event [Event]
+
+simultaneous :: MealyMachine
 simultaneous = Mealy.fromTransitions $ concat [
       --
       -- The simple cases: transitioning from and to 'StateOnePedal'
