@@ -4,6 +4,7 @@
 module EurekaPROM.IO.ALSA (
     -- * Input
     waitInput
+  , dropInput
     -- * Output
   , toggleLED
   , toggleDisplay
@@ -45,6 +46,9 @@ waitInput h = do
         case Input.fromMIDI msg of
           Nothing -> throwIO $ UnexpectedMessage msg
           Just ev -> return ev
+
+dropInput :: ALSA.Handle -> IO ()
+dropInput h = ALSA.Event.dropInput (Handle.alsa h)
 
 {-------------------------------------------------------------------------------
   Send MIDI messages

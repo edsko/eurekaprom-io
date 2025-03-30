@@ -12,21 +12,21 @@ module Test.Mealy.SUT (
   , initialize
   , terminate
     -- * Interaction
+  , showInstruction
   , getEvents
+  , delay
     -- * Command line arguments
   , SystemPort -- opaque
-    -- * Re-exports
-  , Input.Pedal(..)
-  , Input.Event(..)
-  , Input.PedalState(..)
   ) where
 
 import Control.Concurrent
 import Control.Monad (void)
+import Control.Monad.IO.Class
 import Control.Monad.Reader (ReaderT(..))
 import Data.Maybe (fromMaybe)
+import System.Console.ANSI
+import System.Timeout
 import Test.Tasty.Options
-import Test.Tasty.QuickCheck
 
 import App.Common.Cmdline
 import Control.ALSA qualified as ALSA
@@ -34,9 +34,11 @@ import Control.ALSA.Handle qualified as ALSA (Handle)
 import Control.ALSA.Handle qualified as Handle
 import Data.Mealy qualified as Mealy
 import EurekaPROM.IO.ALSA
-import EurekaPROM.IO.Input qualified as Input
+import EurekaPROM.IO.Input
 import EurekaPROM.IO.Simultaneous (simultaneous)
 import EurekaPROM.IO.Simultaneous qualified as Simultaneous
+
+import Test.Mealy.Model (PedalAction(..))
 
 {-------------------------------------------------------------------------------
   Monad
@@ -62,6 +64,7 @@ initialize (SystemPort portSpec) = do
     alsaHandle <- Handle.open
     deviceVar  <- newMVar Simultaneous.initDeviceState
     ALSA.resolve alsaHandle portSpec
+    dropInput alsaHandle
     putStrLn "System initialized"
     return SystemState{alsaHandle, deviceVar}
 
@@ -71,15 +74,12 @@ terminate SystemState{alsaHandle, deviceVar} = do
       case deviceState of
         Simultaneous.StateNoPedals ->
           return ()
-        Simultaneous.StateOnePedal st -> do
-          putStrLn $ "Please release " ++ show (Simultaneous.pedalPressed st)
-          void $ waitInput alsaHandle
-        Simultaneous.StateTwoPedals st -> do
-          putStrLn $ "Please release " ++ show (Simultaneous.pedalPressed1 st)
-          void $ waitInput alsaHandle
-          putStrLn $ "Please release " ++ show (Simultaneous.pedalPressed2 st)
-          void $ waitInput alsaHandle
-
+        _otherwise -> do
+          setSGR [SetColor Foreground Dull Red]
+          putStrLn "Please release all pedals."
+          setSGR [Reset]
+          delay
+          dropInput alsaHandle
       return Simultaneous.StateNoPedals
     Handle.close alsaHandle
     putStrLn "System terminated"
@@ -88,13 +88,34 @@ terminate SystemState{alsaHandle, deviceVar} = do
   Interaction
 -------------------------------------------------------------------------------}
 
-getEvents :: SystemMonad [Input.Event]
+getEvents :: SystemMonad [Event]
 getEvents = ReaderT $ \SystemState{alsaHandle, deviceVar} ->
     modifyMVar deviceVar $ \deviceState -> do
       input <- waitInput alsaHandle
       return $
         fromMaybe (deviceState, []) $
           Mealy.step simultaneous (deviceState, input)
+
+showInstruction :: MonadIO m => PedalAction -> m ()
+showInstruction action = liftIO $ do
+    case action of
+      ActPress pedal -> do
+        setSGR [SetColor Foreground Dull Green]
+        putStrLn $ "Please press " ++ show pedal
+      ActRelease pedal -> do
+        setSGR [SetColor Foreground Dull Red]
+        putStrLn $ "Please release " ++ show pedal
+    setSGR [Reset]
+
+delay :: MonadIO m => m ()
+delay = liftIO $ do
+    setSGR [SetColor Foreground Vivid Blue]
+    putStrLn "Continuing after delay or key press."
+    setSGR [Reset]
+    void $ timeout waitTime $ getLine
+  where
+    waitTime :: Int
+    waitTime = 5_000_000
 
 {-------------------------------------------------------------------------------
   Command line arguments
@@ -110,10 +131,3 @@ instance IsOption SystemPort where
   optionName     = pure "input-only"
   parseValue     = Just . SystemPort .  ALSA.PortInputOnly
   optionHelp     = pure "ALSA input port"
-
-{-------------------------------------------------------------------------------
-  QuickCheck support
--------------------------------------------------------------------------------}
-
-instance Arbitrary Input.Pedal where
-  arbitrary = elements [Input.Pedal1 .. Input.Pedal5]

@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Control.Monad.IO.Class
+import Data.Bifunctor
 import Data.Proxy
 import Test.Tasty
 import Test.Tasty.Ingredients
@@ -12,84 +12,59 @@ import Test.QuickCheck.StateModel.Lockstep
 import Test.QuickCheck.StateModel.Lockstep.Defaults qualified as Lockstep
 import Test.QuickCheck.StateModel.Lockstep.Run      qualified as Lockstep
 
+import EurekaPROM.IO.Input qualified as Dev
+
 import Test.Mealy.SUT (SystemMonad, SystemPort)
 import Test.Mealy.SUT qualified as SUT
+import Test.Mealy.Model
+import Control.Monad.IO.Class
 
 {-------------------------------------------------------------------------------
   Model
 -------------------------------------------------------------------------------}
 
-data Model =
-    PressedZero
-  | PressedOne SUT.Pedal
-  deriving stock (Show)
-
-data PedalAction =
-    Press   SUT.Pedal
-  | Release SUT.Pedal
-  deriving stock (Show, Eq)
-
 instance StateModel (Lockstep Model) where
   data Action (Lockstep Model) a where
-    ActionPedal :: PedalAction -> Action (Lockstep Model) [SUT.Event]
+    ActPedal :: PedalAction -> Action (Lockstep Model) [Dev.Event]
 
-  initialState    = Lockstep.initialState PressedZero
+  initialState    = Lockstep.initialState initModel
   nextState       = Lockstep.nextState
   arbitraryAction = Lockstep.arbitraryAction
   shrinkAction    = Lockstep.shrinkAction
 
-  precondition model (ActionPedal pedalAction) = and [
-        Lockstep.precondition model (ActionPedal pedalAction)
-      , case (getModel model, pedalAction) of
-          (PressedZero, Press _) ->
-            True
-          (PressedZero, Release _) ->
-            False
-          (PressedOne _pedal, Press _) ->
-            False
-          (PressedOne pedal, Release pedal') ->
-            pedal == pedal'
+  precondition model (ActPedal action) = and [
+        Lockstep.precondition model (ActPedal action)
+      , canPerform (getModel model) action
       ]
 
 instance InLockstep Model where
   data ModelValue Model a where
-    ModelEvents :: [SUT.Event] -> ModelValue Model [SUT.Event]
+    ModelEvents :: [Dev.Event] -> ModelValue Model [Dev.Event]
   data Observable Model a where
-    ObservableEvents :: [SUT.Event] -> Observable Model [SUT.Event]
+    ObservableEvents :: [Dev.Event] -> Observable Model [Dev.Event]
 
-  usedVars _action = []
-  observeModel (ModelEvents es) = ObservableEvents es
-
-  modelNextState (ActionPedal pedalAction) _ctxt state =
-      case (state, pedalAction) of
-        (PressedZero, Press pressed) -> (
-            ModelEvents [SUT.EventPedal pressed SUT.Press]
-          , PressedOne pressed
-          )
-        (PressedOne pedal, Release released) | pedal == released -> (
-            ModelEvents [SUT.EventPedal released SUT.Release]
-          , PressedZero
-          )
-        _otherwise ->
-          error $ "unexpected action: " ++ show (state, pedalAction)
-
-  arbitraryWithVars _ctxt state =
-      case state of
-        PressedZero ->
-          Some . ActionPedal . Press <$> arbitrary
-        PressedOne pedal ->
-          return $ Some . ActionPedal . Release $ pedal
+  usedVars _action =
+      []
+  observeModel (ModelEvents es) =
+      ObservableEvents es
+  modelNextState (ActPedal action) _ctxt state =
+      first ModelEvents $ execute action state
+  arbitraryWithVars _ctxt state = elements $
+      map (Some . ActPedal) $ possibleActions state
 
 instance RunModel (Lockstep Model) SystemMonad where
   postcondition = Lockstep.postcondition
   monitoring    = Lockstep.monitoring (Proxy @SystemMonad)
 
-  perform _state (ActionPedal pedalAction) _ctxt = do
-      liftIO $ print pedalAction
-      SUT.getEvents
+  perform model (ActPedal action) _ctxt = do
+      liftIO $ print model
+      SUT.showInstruction action
+      if visible (getModel model) (pedalOf action)
+        then SUT.getEvents
+        else SUT.delay >> return []
 
 instance RunLockstep Model SystemMonad where
-  observeReal _ (ActionPedal _) res = ObservableEvents res
+  observeReal _ (ActPedal _) res = ObservableEvents res
 
 deriving stock instance Show (Action (Lockstep Model) a)
 deriving stock instance Eq   (Action (Lockstep Model) a)

@@ -167,6 +167,7 @@ test-suite test-mealy
   ghc-options:    -Wno-orphans
 
   other-modules:
+    Test.Mealy.Model
     Test.Mealy.SUT
 
   build-depends:
@@ -177,7 +178,12 @@ test-suite test-mealy
     , eurekaprom-io
 
   build-depends:
+      -- inherited dependencies
+    , containers
+
+  build-depends:
       -- new dependencies
+    , ansi-terminal       >= 1.1  && < 1.2
     , mtl                 >= 2.2  && < 2.3
     , quickcheck-dynamic  >= 3.4  && < 3.5
     , quickcheck-lockstep >= 0.6  && < 0.7
