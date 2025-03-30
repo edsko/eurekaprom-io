@@ -130,7 +130,7 @@ simultaneous = Mealy.fromTransitions $ concat [
           }
       | pedal1 <- allPedals
       , pedal2 <- allPedals
-      , fromEnum pedal1 < fromEnum pedal2
+      , pedal1 < pedal2
       , notified1 <- [True, False]
       ]
 
@@ -199,7 +199,7 @@ simultaneous = Mealy.fromTransitions $ concat [
         ]
       | pedal1 <- allPedals
       , pedal2 <- allPedals
-      , fromEnum pedal1 < fromEnum pedal2
+      , pedal1 < pedal2
       , notified1 <- [True, False]
       ]
 
@@ -229,8 +229,8 @@ simultaneous = Mealy.fromTransitions $ concat [
       | pedal1 <- allPedals
       , pedal2 <- allPedals
       , pedal3 <- allPedals
-      , fromEnum pedal1 < fromEnum pedal2
-      , fromEnum pedal2 < fromEnum pedal3
+      , pedal1 < pedal2
+      , pedal2 < pedal3
       , notified1 <- [True, False]
       ]
 

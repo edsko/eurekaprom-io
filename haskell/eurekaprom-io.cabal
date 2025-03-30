@@ -21,6 +21,7 @@ common lang
       DerivingStrategies
       DerivingVia
       DisambiguateRecordFields
+      MultiWayIf
       PackageImports
       TypeFamilies
       UndecidableInstances
@@ -69,7 +70,6 @@ library data
       OverloadedLabels
 
   exposed-modules:
-      Data.IrregularEnum
       Data.Mealy
       Data.MIDI
 

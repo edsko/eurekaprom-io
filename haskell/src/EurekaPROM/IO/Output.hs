@@ -28,17 +28,28 @@ import Data.Char (ord, chr)
 import Data.Functor.Const
 import Data.Kind
 
-import Data.IrregularEnum
 import Data.MIDI qualified as MIDI
 
 {-------------------------------------------------------------------------------
-  Preliminaries
+  Letters
 -------------------------------------------------------------------------------}
 
 -- | Letter (A-Z)
 newtype Letter = Letter Char
   deriving stock (Show, Eq, Ord)
-  deriving Enum via AsIrregularEnum Letter
+
+instance Bounded Letter where
+  minBound = Letter 'A'
+  maxBound = Letter 'Z'
+
+instance Enum Letter where
+  fromEnum (Letter x) = ord x - ord 'A'
+  toEnum n
+    | 0 <= n, n <= 25
+    = Letter $ chr (ord 'A' + n)
+
+    | otherwise
+    = error $ "(toEnum " ++ show n ++ " :: Letter) not defined"
 
 mkLetter :: Char -> Maybe Letter
 mkLetter c
@@ -46,45 +57,39 @@ mkLetter c
   | ' ' == c           = Nothing
   | otherwise          = error $ "mkLetter: " ++ show c ++ " out of range"
 
-instance IrregularEnum Letter where
-  fromIrregularEnum (Letter x) = ord x - ord 'A'
-  toIrregularEnum x
-    | 0 <= x, x <= 25
-    = Just $ Letter $ chr (ord 'A' + x)
-
-    | otherwise
-    = Nothing
-
-instance Bounded Letter where
-  minBound = Letter 'A'
-  maxBound = Letter 'Z'
+{-------------------------------------------------------------------------------
+  Hexadecimal values
+-------------------------------------------------------------------------------}
 
 -- | Hexadecimal value (0-F)
 newtype Hex = Hex Char
   deriving stock (Show, Eq, Ord)
-  deriving Enum via AsIrregularEnum Hex
 
 instance Bounded Hex where
   minBound = Hex '0'
   maxBound = Hex 'F'
 
-instance IrregularEnum Hex where
-  fromIrregularEnum (Hex x)
+instance Enum Hex where
+  fromEnum (Hex x)
     | '0' <= x, x <= '9'
     = ord x - ord '0'
 
     | otherwise
     = ord x - ord 'A' + 10
 
-  toIrregularEnum x
-    | 0 <= x, x <= 9
-    = Just $ Hex $ chr (ord '0' + x)
+  toEnum n
+    | 0 <= n, n <= 9
+    = Hex $ chr (ord '0' + n)
 
-    | 10 <= x, x <= 15
-    = Just $ Hex $ chr (ord 'A' + x - 10)
+    | 10 <= n, n <= 15
+    = Hex $ chr (ord 'A' + n - 10)
 
     | otherwise
-    = Nothing
+    = error $ "(toEnum " ++ show n ++ " :: Hex) not defined"
+
+{-------------------------------------------------------------------------------
+  Value for the leading position in the display
+-------------------------------------------------------------------------------}
 
 -- | Value for the leading position in the display
 data Leading =
@@ -93,33 +98,50 @@ data Leading =
   | Plus
   | PlusOne
   deriving stock (Show, Eq, Ord)
-  deriving Enum via AsIrregularEnum Leading
 
 instance Bounded Leading where
   minBound = One
   maxBound = PlusOne
 
-instance IrregularEnum Leading where
-  fromIrregularEnum One     = 1
-  fromIrregularEnum Minus   = 2
-  fromIrregularEnum Plus    = 3
-  fromIrregularEnum PlusOne = 4
+instance Enum Leading where
+  fromEnum One     = 1
+  fromEnum Minus   = 2
+  fromEnum Plus    = 3
+  fromEnum PlusOne = 4
 
-  toIrregularEnum 1 = Just One
-  toIrregularEnum 2 = Just Minus
-  toIrregularEnum 3 = Just Plus
-  toIrregularEnum 4 = Just PlusOne
-  toIrregularEnum _ = Nothing
+  toEnum 1 = One
+  toEnum 2 = Minus
+  toEnum 3 = Plus
+  toEnum 4 = PlusOne
+  toEnum n = error $ "(toEnum " ++ show n ++ " :: Leading) not defined"
 
 {-------------------------------------------------------------------------------
-  Definition
+  Value (any of the above)
+-------------------------------------------------------------------------------}
+
+data Value :: Type -> Type where
+  ValueInt     :: Int           -> Value Int
+  ValueLetter  :: Maybe Letter  -> Value Letter
+  ValueLeading :: Maybe Leading -> Value Leading
+  ValueHex     :: Maybe Hex     -> Value Hex
+
+deriving instance Show (Value a)
+deriving instance Eq   (Value a)
+deriving instance Ord  (Value a)
+
+{-------------------------------------------------------------------------------
+  LED
 -------------------------------------------------------------------------------}
 
 -- | LEDs
 --
 -- LEDs marked (*) are overriden by MIDI activity.
+--
+-- NOTE: 'Enum' instance is derived, and not related to MIDI values
+-- (MIDI values are not consecutive).
 data LED =
-    Pedal1
+    Pedal10
+  | Pedal1
   | Pedal2
   | Pedal3
   | Pedal4
@@ -128,7 +150,6 @@ data LED =
   | Pedal7
   | Pedal8
   | Pedal9
-  | Pedal10
   | ExprA    -- ^ (*)
   | ExprB    -- ^ (*)
   | Sw1      -- ^ (*)
@@ -142,66 +163,11 @@ data LED =
   | MidiFn
   | MidiCh
   | Config
-  deriving stock (Show, Eq, Ord)
-  deriving Enum via AsIrregularEnum LED
+  deriving stock (Show, Eq, Ord, Bounded, Enum)
 
-instance Bounded LED where
-  minBound = Pedal1
-  maxBound = Config
-
-instance IrregularEnum LED where
-  fromIrregularEnum Pedal1  = 1
-  fromIrregularEnum Pedal2  = 2
-  fromIrregularEnum Pedal3  = 3
-  fromIrregularEnum Pedal4  = 4
-  fromIrregularEnum Pedal5  = 5
-  fromIrregularEnum Pedal6  = 6
-  fromIrregularEnum Pedal7  = 7
-  fromIrregularEnum Pedal8  = 8
-  fromIrregularEnum Pedal9  = 9
-  fromIrregularEnum Pedal10 = 0
-  fromIrregularEnum ExprA   = 11
-  fromIrregularEnum ExprB   = 12
-  fromIrregularEnum Sw1     = 13
-  fromIrregularEnum Sw2     = 14
-  fromIrregularEnum Bank    = 15
-  fromIrregularEnum Select  = 16
-  fromIrregularEnum Number  = 17
-  fromIrregularEnum Value1  = 18
-  fromIrregularEnum Value2  = 19
-  fromIrregularEnum DirSel  = 20
-  fromIrregularEnum MidiFn  = 21
-  fromIrregularEnum MidiCh  = 22
-  fromIrregularEnum Config  = 23
-
-  toIrregularEnum 1  = Just Pedal1
-  toIrregularEnum 2  = Just Pedal2
-  toIrregularEnum 3  = Just Pedal3
-  toIrregularEnum 4  = Just Pedal4
-  toIrregularEnum 5  = Just Pedal5
-  toIrregularEnum 6  = Just Pedal6
-  toIrregularEnum 7  = Just Pedal7
-  toIrregularEnum 8  = Just Pedal8
-  toIrregularEnum 9  = Just Pedal9
-  toIrregularEnum 0  = Just Pedal10
-  toIrregularEnum 11 = Just ExprA
-  toIrregularEnum 12 = Just ExprB
-  toIrregularEnum 13 = Just Sw1
-  toIrregularEnum 14 = Just Sw2
-  toIrregularEnum 15 = Just Bank
-  toIrregularEnum 16 = Just Select
-  toIrregularEnum 17 = Just Number
-  toIrregularEnum 18 = Just Value1
-  toIrregularEnum 19 = Just Value2
-  toIrregularEnum 20 = Just DirSel
-  toIrregularEnum 21 = Just MidiFn
-  toIrregularEnum 22 = Just MidiCh
-  toIrregularEnum 23 = Just Config
-  toIrregularEnum _  = Nothing
-
-  irregularSucc Pedal9  = Just Pedal10
-  irregularSucc Pedal10 = Just ExprA
-  irregularSucc _       = Nothing
+{-------------------------------------------------------------------------------
+  Full display
+-------------------------------------------------------------------------------}
 
 -- | 7-segment display
 data Display :: (Type -> Type) -> Type where
@@ -223,39 +189,6 @@ deriving stock instance Ord  (Display Value)
 instance Bounded (Display (Const ())) where
   minBound = All     (Const ())
   maxBound = OnesHex (Const ())
-
-deriving
-  via AsIrregularEnum (Display (Const ()))
-  instance Enum (Display (Const ()))
-
-instance IrregularEnum (Display (Const ())) where
-  fromIrregularEnum (All        (Const ())) = 108
-  fromIrregularEnum (TensLetter (Const ())) = 109
-  fromIrregularEnum (OnesLetter (Const ())) = 110
-  fromIrregularEnum (Leading    (Const ())) = 112
-  fromIrregularEnum (TensHex    (Const ())) = 113
-  fromIrregularEnum (OnesHex    (Const ())) = 114
-
-  toIrregularEnum 108 = Just $ All        (Const ())
-  toIrregularEnum 109 = Just $ TensLetter (Const ())
-  toIrregularEnum 110 = Just $ OnesLetter (Const ())
-  toIrregularEnum 112 = Just $ Leading    (Const ())
-  toIrregularEnum 113 = Just $ TensHex    (Const ())
-  toIrregularEnum 114 = Just $ OnesHex    (Const ())
-  toIrregularEnum _   = Nothing
-
-  irregularSucc (OnesLetter (Const ())) = Just $ Leading (Const ())
-  irregularSucc _                       = Nothing
-
-data Value :: Type -> Type where
-  ValueInt     :: Int           -> Value Int
-  ValueLetter  :: Maybe Letter  -> Value Letter
-  ValueLeading :: Maybe Leading -> Value Leading
-  ValueHex     :: Maybe Hex     -> Value Hex
-
-deriving instance Show (Value a)
-deriving instance Eq   (Value a)
-deriving instance Ord  (Value a)
 
 {-------------------------------------------------------------------------------
   General purpose functions
@@ -286,9 +219,34 @@ ledToMIDI led val = MIDI.Message {
       messageChannel = 0
     , messageBody    = MIDI.MsgControl MIDI.Control {
           controlNumber = if val then 106 else 107
-        , controlValue  = fromEnum led
+        , controlValue  = aux led
         }
     }
+  where
+    aux Pedal10 = 0
+    aux Pedal1  = 1
+    aux Pedal2  = 2
+    aux Pedal3  = 3
+    aux Pedal4  = 4
+    aux Pedal5  = 5
+    aux Pedal6  = 6
+    aux Pedal7  = 7
+    aux Pedal8  = 8
+    aux Pedal9  = 9
+    -- NOTE: Gap at 10
+    aux ExprA   = 11
+    aux ExprB   = 12
+    aux Sw1     = 13
+    aux Sw2     = 14
+    aux Bank    = 15
+    aux Select  = 16
+    aux Number  = 17
+    aux Value1  = 18
+    aux Value2  = 19
+    aux DirSel  = 20
+    aux MidiFn  = 21
+    aux MidiCh  = 22
+    aux Config  = 23
 
 valueToMIDI :: Value a -> Int
 valueToMIDI (ValueInt     x)        = x
@@ -303,7 +261,16 @@ displayToMIDI :: Display Value -> MIDI.Message
 displayToMIDI val = MIDI.Message {
       messageChannel = 0
     , messageBody    = MIDI.MsgControl MIDI.Control {
-          controlNumber = fromEnum $ mapDisplay (\_ -> Const ()) val
+          controlNumber = aux $ mapDisplay (\_ -> Const ()) val
         , controlValue  = withDisplayValue valueToMIDI val
         }
     }
+  where
+    aux :: Display (Const ()) -> Int
+    aux (All        (Const ())) = 108
+    aux (TensLetter (Const ())) = 109
+    aux (OnesLetter (Const ())) = 110
+    -- NOTE: Gap at 111
+    aux (Leading    (Const ())) = 112
+    aux (TensHex    (Const ())) = 113
+    aux (OnesHex    (Const ())) = 114
