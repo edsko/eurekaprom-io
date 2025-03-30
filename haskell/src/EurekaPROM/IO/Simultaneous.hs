@@ -277,7 +277,7 @@ simultaneous = Mealy.fromTransitions $ concat [
          }
       | pedal1 <- allPedals
       , pedal2 <- allPedals
-      , fromEnum pedal1 > fromEnum pedal2
+      , pedal1 > pedal2
       , notified1 <- [True, False]
       ]
     ]
