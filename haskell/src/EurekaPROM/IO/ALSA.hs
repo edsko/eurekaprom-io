@@ -4,6 +4,7 @@
 module EurekaPROM.IO.ALSA (
     -- * Input
     waitInput
+  , waitInputUsing
   , dropInput
     -- * Output
   , toggleLED
@@ -38,12 +39,15 @@ data UnexpectedEvent =
   deriving anyclass (Exception)
 
 waitInput :: ALSA.Handle -> IO Input.Event
-waitInput h = do
+waitInput = waitInputUsing Input.eventFromMIDI
+
+waitInputUsing :: (MIDI.Message -> Maybe a) -> ALSA.Handle -> IO a
+waitInputUsing parser h = do
     event <- ALSA.Event.input (Handle.alsa h)
     case MIDI.convert event of
       Nothing  -> throwIO $ UnexpectedEvent event
       Just msg ->
-        case Input.fromMIDI msg of
+        case parser msg of
           Nothing -> throwIO $ UnexpectedMessage msg
           Just ev -> return ev
 

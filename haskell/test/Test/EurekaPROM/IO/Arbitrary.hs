@@ -14,19 +14,28 @@ import EurekaPROM.IO.Input qualified as Input
 instance Arbitrary Input.Event where
   arbitrary = do
       isEventPedal <- arbitrary
-      if isEventPedal then
-        Input.EventPedal <$> arbitrary <*> arbitrary
-      else
-        Input.EventExpr <$> arbitrary <*> choose (0, 127)
+      if isEventPedal
+        then Input.EventPedal <$> arbitrary
+        else Input.EventExpr  <$> arbitrary
 
-  shrink (Input.EventPedal pedal state) = concat [
-        [ Input.EventPedal pedal' state  | pedal' <- shrink pedal ]
-      , [ Input.EventPedal pedal  state' | state' <- shrink state ]
+  shrink (Input.EventPedal event) = Input.EventPedal <$> shrink event
+  shrink (Input.EventExpr  event) = concat [
+        [ Input.EventPedal $ Input.PedalEvent Input.Pedal1 Input.Press ]
+      , Input.EventExpr <$> shrink event
       ]
-  shrink (Input.EventExpr expr value) = concat [
-        [ Input.EventPedal Input.Pedal1 Input.Press ]
-      , [ Input.EventExpr expr' value  | expr'  <- shrink expr  ]
-      , [ Input.EventExpr expr  value' | value' <- shrink value ]
+
+instance Arbitrary Input.PedalEvent where
+  arbitrary = Input.PedalEvent <$> arbitrary <*> arbitrary
+  shrink (Input.PedalEvent pedal state) = concat [
+        [ Input.PedalEvent pedal' state  | pedal' <- shrink pedal ]
+      , [ Input.PedalEvent pedal  state' | state' <- shrink state ]
+      ]
+
+instance Arbitrary Input.ExprEvent where
+  arbitrary = Input.ExprEvent <$> arbitrary <*> choose (0, 127)
+  shrink (Input.ExprEvent expr value) = concat [
+        [ Input.ExprEvent expr' value  | expr'  <- shrink expr  ]
+      , [ Input.ExprEvent expr  value' | value' <- shrink value ]
       ]
 
 instance Arbitrary Input.Pedal where

@@ -22,5 +22,5 @@ tests = testGroup "Test.EurekaPROM.IO.Input" [
 
 prop_fromMIDI_toMIDI :: Event -> Property
 prop_fromMIDI_toMIDI event =
-        fromMIDI (toMIDI event)
+        eventFromMIDI (eventToMIDI event)
     === Just event

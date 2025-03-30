@@ -25,6 +25,7 @@ module Data.Mealy (
   ) where
 
 import Data.Aeson
+import Data.Bifunctor
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -44,10 +45,8 @@ data Mealy s i o = Mealy {
 -------------------------------------------------------------------------------}
 
 data Transition s i o = Transition {
-      from   :: s
-    , input  :: i
-    , to     :: s
-    , output :: o
+      from :: (s, i)
+    , to   :: (s, o)
     }
 
 fromTransitions :: forall s i o.
@@ -56,16 +55,13 @@ fromTransitions :: forall s i o.
 fromTransitions = Mealy . Map.fromList . map aux
   where
     aux :: Transition s i o -> ((s, i), (s, o))
-    aux Transition{from, input, to, output} = (
-          (from, input)
-        , (to, output)
-        )
+    aux Transition{from, to} = (from, to)
 
 toTransitions :: forall s i o. Mealy s i o -> [Transition s i o]
 toTransitions = map aux . Map.toList . transitions
   where
     aux :: ((s, i), (s, o)) -> Transition s i o
-    aux ((from, input), (to, output)) = Transition{from, input, to, output}
+    aux (from, to) = Transition{from, to}
 
 {-------------------------------------------------------------------------------
   Combinators
@@ -81,11 +77,9 @@ wrap f =
     . toTransitions
   where
     aux :: Transition s i o -> Transition (f s) (f i) (f o)
-    aux Transition{from, input, to, output} = Transition{
-          from   = f from
-        , input  = f input
-        , to     = f to
-        , output = f output
+    aux Transition{from, to} = Transition{
+          from = bimap f f from
+        , to   = bimap f f to
         }
 
 mapState :: forall s s' i o.
@@ -98,11 +92,9 @@ mapState f =
     . toTransitions
   where
     aux :: Transition s i o -> Transition s' i o
-    aux Transition{from, input, to, output} = Transition{
-          from   = f from
-        , to     = f to
-        , input
-        , output
+    aux Transition{from, to} = Transition{
+          from   = first f from
+        , to     = first f to
         }
 
 {-------------------------------------------------------------------------------
@@ -120,7 +112,7 @@ allStates :: Ord s => Mealy s i o -> Set s
 allStates = Set.fromList . concatMap aux . toTransitions
   where
     aux :: Transition s i o -> [s]
-    aux Transition{from, to} = [from, to]
+    aux Transition{from, to} = [fst from, fst to]
 
 -- | Assign unique 'Int' to every state
 encodeState :: forall s i o.
@@ -172,9 +164,7 @@ instance (ToJSON s, ToJSON i, ToJSON o) => ToJSON (Mealy s i o) where
   toJSON = toJSON . toTransitions
 
 instance (ToJSON s, ToJSON i, ToJSON o) => ToJSON (Transition s i o) where
-  toJSON Transition{from, input, to, output} = object [
-        "from"   .= from
-      , "input"  .= input
-      , "to"     .= to
-      , "output" .= output
+  toJSON Transition{from, to} = object [
+        "from" .= from
+      , "to"   .= to
       ]

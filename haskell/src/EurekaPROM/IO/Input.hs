@@ -6,13 +6,27 @@
 module EurekaPROM.IO.Input (
     -- * Definition
     Event(..)
+    -- ** Pedal events
+  , PedalEvent(..)
   , Pedal(..)
+  , pedalEventPedal
+  , pedalEventState
   , PedalState(..)
+    -- ** Expression events
+  , ExprEvent(..)
+  , exprEventPedal
+  , exprEventValue
   , Expr(..)
     -- * MIDI
-  , fromMIDI
-  , toMIDI
+  , eventFromMIDI
+  , pedalEventFromMIDI
+  , exprEventFromMIDI
+  , eventToMIDI
+  , pedalEventToMIDI
+  , exprEventToMIDI
   ) where
+
+import Control.Applicative
 
 import Data.MIDI qualified as MIDI
 
@@ -80,43 +94,79 @@ instance Enum Expr where
   toEnum n   = error $ "(toEnum " ++ show n ++ " :: Expr) not defined"
 
 data Event =
-    EventPedal Pedal PedalState
-  | EventExpr  Expr  Int
+    EventPedal PedalEvent
+  | EventExpr  ExprEvent
   deriving stock (Show, Eq, Ord)
+
+data PedalEvent = PedalEvent Pedal PedalState
+  deriving stock (Show, Eq, Ord)
+
+pedalEventPedal :: PedalEvent -> Pedal
+pedalEventPedal (PedalEvent pedal _state) = pedal
+
+pedalEventState :: PedalEvent -> PedalState
+pedalEventState (PedalEvent _pedal state) = state
+
+data ExprEvent = ExprEvent Expr Int
+  deriving stock (Show, Eq, Ord)
+
+exprEventPedal :: ExprEvent -> Expr
+exprEventPedal (ExprEvent pedal _value) = pedal
+
+exprEventValue :: ExprEvent -> Int
+exprEventValue (ExprEvent _pedal value) = value
 
 {-------------------------------------------------------------------------------
   MIDI
 -------------------------------------------------------------------------------}
 
-fromMIDI :: MIDI.Message -> Maybe Event
-fromMIDI msg =
+eventFromMIDI :: MIDI.Message -> Maybe Event
+eventFromMIDI msg = asum [
+      EventPedal <$> pedalEventFromMIDI msg
+    , EventExpr  <$> exprEventFromMIDI msg
+    ]
+
+pedalEventFromMIDI :: MIDI.Message -> Maybe PedalEvent
+pedalEventFromMIDI msg =
     case MIDI.messageBody msg of
       MIDI.MsgControl MIDI.Control{controlNumber = num, controlValue = val} ->
-        if | num == 104 ->
-              Just $ EventPedal (toEnum val) Press
-           | num == 105 ->
-              Just $ EventPedal (toEnum val) Release
-           | num == fromEnum ExprA || num == fromEnum ExprB ->
-              Just $ EventExpr (toEnum num) val
-           | otherwise ->
-              Nothing
+        if | num == 104 -> Just $ PedalEvent (toEnum val) Press
+           | num == 105 -> Just $ PedalEvent (toEnum val) Release
+           | otherwise  -> Nothing
       _otherwise ->
         Nothing
 
-toMIDI :: Event -> MIDI.Message
-toMIDI event = MIDI.Message {
+exprEventFromMIDI :: MIDI.Message -> Maybe ExprEvent
+exprEventFromMIDI msg =
+    case MIDI.messageBody msg of
+      MIDI.MsgControl MIDI.Control{controlNumber = num, controlValue = val} ->
+        if num == fromEnum ExprA || num == fromEnum ExprB
+           then Just $ ExprEvent (toEnum num) val
+           else Nothing
+      _otherwise ->
+        Nothing
+
+eventToMIDI :: Event -> MIDI.Message
+eventToMIDI (EventPedal event) = pedalEventToMIDI event
+eventToMIDI (EventExpr  event) = exprEventToMIDI  event
+
+pedalEventToMIDI :: PedalEvent -> MIDI.Message
+pedalEventToMIDI (PedalEvent pedal state) = MIDI.Message {
       messageChannel = 0
-    , messageBody    = MIDI.MsgControl $
-        case event of
-          EventPedal pedal state -> MIDI.Control {
-              controlNumber =
-                case state of
-                  Press   -> 104
-                  Release -> 105
-            , controlValue = fromEnum pedal
-            }
-          EventExpr expr value -> MIDI.Control {
-              controlNumber = fromEnum expr
-            , controlValue  = value
-            }
+    , messageBody    = MIDI.MsgControl $ MIDI.Control {
+                           controlNumber =
+                             case state of
+                               Press   -> 104
+                               Release -> 105
+                         , controlValue = fromEnum pedal
+                         }
+    }
+
+exprEventToMIDI :: ExprEvent -> MIDI.Message
+exprEventToMIDI (ExprEvent expr value) = MIDI.Message {
+      messageChannel = 0
+    , messageBody    = MIDI.MsgControl $ MIDI.Control {
+                           controlNumber = fromEnum expr
+                         , controlValue  = value
+                         }
     }

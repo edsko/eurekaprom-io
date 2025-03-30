@@ -12,12 +12,11 @@ import Test.QuickCheck.StateModel.Lockstep
 import Test.QuickCheck.StateModel.Lockstep.Defaults qualified as Lockstep
 import Test.QuickCheck.StateModel.Lockstep.Run      qualified as Lockstep
 
-import EurekaPROM.IO.Input qualified as Dev
+import EurekaPROM.IO.Input
 
-import Test.Mealy.SUT (SystemMonad, SystemPort)
-import Test.Mealy.SUT qualified as SUT
-import Test.Mealy.Model
-import Control.Monad.IO.Class
+import Test.Lockstep.SUT (SystemMonad, SystemPort)
+import Test.Lockstep.SUT qualified as SUT
+import Test.Lockstep.Model
 
 {-------------------------------------------------------------------------------
   Model
@@ -25,7 +24,7 @@ import Control.Monad.IO.Class
 
 instance StateModel (Lockstep Model) where
   data Action (Lockstep Model) a where
-    ActPedal :: PedalAction -> Action (Lockstep Model) [Dev.Event]
+    ActPedal :: PedalEvent -> Action (Lockstep Model) [PedalEvent]
 
   initialState    = Lockstep.initialState initModel
   nextState       = Lockstep.nextState
@@ -39,9 +38,9 @@ instance StateModel (Lockstep Model) where
 
 instance InLockstep Model where
   data ModelValue Model a where
-    ModelEvents :: [Dev.Event] -> ModelValue Model [Dev.Event]
+    ModelEvents :: [PedalEvent] -> ModelValue Model [PedalEvent]
   data Observable Model a where
-    ObservableEvents :: [Dev.Event] -> Observable Model [Dev.Event]
+    ObservableEvents :: [PedalEvent] -> Observable Model [PedalEvent]
 
   usedVars _action =
       []
@@ -57,9 +56,8 @@ instance RunModel (Lockstep Model) SystemMonad where
   monitoring    = Lockstep.monitoring (Proxy @SystemMonad)
 
   perform model (ActPedal action) _ctxt = do
-      liftIO $ print model
       SUT.showInstruction action
-      if visible (getModel model) (pedalOf action)
+      if visible (getModel model) (pedalEventPedal action)
         then SUT.getEvents
         else SUT.delay >> return []
 
@@ -78,15 +76,22 @@ deriving stock instance Eq   (Observable Model a)
 -------------------------------------------------------------------------------}
 
 main :: IO ()
-main = defaultMainWithIngredients ingredients $ askOption $ \mPortSpec ->
-    testGroup "test-mealy" [
-        testProperty "lockstep" $
-          Lockstep.runActionsBracket
-            (Proxy @Model)
-            (SUT.initialize mPortSpec)
-            SUT.terminate
-            SUT.run
-      ]
+main = defaultMainWithIngredients ingredients $
+    -- We need the MIDI port to listen to
+    askOption $ \mPortSpec ->
+    -- Disable shrinking (too slow due to human involvement in test execution)
+    localOption (QuickCheckMaxShrinks 0) $
+    -- A few tests are sufficient (each test is itself many tests)
+    localOption (QuickCheckTests 5) $
+    -- Setup the actual lockstep test
+      testGroup "test-mealy" [
+          testProperty "lockstep" $
+            Lockstep.runActionsBracket
+              (Proxy @Model)
+              (SUT.initialize mPortSpec)
+              SUT.terminate
+              SUT.run
+        ]
   where
     ingredients :: [Ingredient]
     ingredients =

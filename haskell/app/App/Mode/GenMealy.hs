@@ -7,7 +7,6 @@ import Data.Aeson qualified as Aeson
 import Data.Yaml qualified as Yaml
 
 import Control.ALSA.Handle qualified as ALSA (Handle)
-import Data.Mealy (Mealy)
 import Data.Mealy qualified as Mealy
 import Data.MIDI qualified as MIDI
 
@@ -29,9 +28,9 @@ data Cmd a =
 run :: Cmd ALSA.Handle -> IO ()
 run mode =
     case mode of
-      Exec h ->
+      Exec h -> do
         Mealy.exec machine Mealy.ExecEnv{
-            produceInput  = waitInput h
+            produceInput  = waitInputUsing Input.pedalEventFromMIDI h
           , processOutput = print
           , unrecognized  = warnUnrecognized
           , initialState  = Simultaneous.initDeviceState
@@ -47,45 +46,9 @@ run mode =
     machine :: Simultaneous.MealyMachine
     machine = simultaneous
 
-    warnUnrecognized :: Simultaneous.DeviceState -> Input.Event -> IO ()
+    warnUnrecognized :: Simultaneous.DeviceState -> Input.PedalEvent -> IO ()
     warnUnrecognized s i =
         putStrLn $ "No transition for " ++ show i ++ " in state " ++ show s
-
-{-------------------------------------------------------------------------------
-  Simple example: configure pedal 1 as a sustain pedal
--------------------------------------------------------------------------------}
-
-data SustainState = SustainReleased | SustainPressed
-  deriving stock (Show, Eq, Ord)
-
-_sustain :: Mealy SustainState Input.Event MIDI.Message
-_sustain = Mealy.fromTransitions [
-      Mealy.Transition {
-          from   = SustainReleased
-        , input  = Input.EventPedal Input.Pedal1 Input.Press
-        , to     = SustainPressed
-        , output = MIDI.Message {
-              messageChannel = 0
-            , messageBody    = MIDI.MsgControl MIDI.Control {
-                  controlNumber = 64
-                , controlValue  = 127
-                }
-            }
-        }
-    , Mealy.Transition {
-          from   = SustainPressed
-        , input  = Input.EventPedal Input.Pedal1 Input.Release
-        , to     = SustainReleased
-        , output = MIDI.Message {
-              messageChannel = 0
-            , messageBody    = MIDI.MsgControl MIDI.Control {
-                  controlNumber = 64
-                , controlValue  = 0
-                }
-            }
-        }
-    ]
-
 
 {-------------------------------------------------------------------------------
   Configure YAML output
@@ -106,38 +69,22 @@ instance ToJSON (YamlOutput Simultaneous.DeviceState) where
         Simultaneous.StateNoPedals -> object [
             "pedals" .= toYaml ([] :: [Input.Pedal])
           ]
-        Simultaneous.StateOnePedal onePedal ->
-          toYaml onePedal
-        Simultaneous.StateTwoPedals twoPedals ->
-          toYaml twoPedals
+        Simultaneous.StateOnePedal pedal -> object [
+            "pedals" .= toYaml [pedal]
+          ]
+        Simultaneous.StateTwoPedals pedal1 pedal2 -> object [
+            "pedals" .= toYaml [pedal1, pedal2]
+          ]
 
-instance ToJSON (YamlOutput Simultaneous.OnePedalPressed) where
-  toJSON (YamlOutput onePedal) = object [
-        "pedals"    .= toYaml [pedal]
-      , "notified1" .= notified
-      ]
-    where
-      Simultaneous.OnePedalPressed pedal notified = onePedal
-
-instance ToJSON (YamlOutput Simultaneous.TwoPedalsPressed) where
-  toJSON (YamlOutput twoPedals) = object [
-        "pedals"    .= toYaml [pedal1, pedal2]
-      , "notified1" .= notified1
-      ]
-    where
-      Simultaneous.TwoPedalsPressed pedal1 pedal2 notified1 = twoPedals
-
-instance ToJSON (YamlOutput Input.Event) where
+instance ToJSON (YamlOutput Input.PedalEvent) where
   toJSON (YamlOutput inputEvent) =
       case inputEvent of
-        Input.EventPedal pedal Input.Press -> object [
+        Input.PedalEvent pedal Input.Press -> object [
             "press" .= toYaml pedal
           ]
-        Input.EventPedal pedal Input.Release -> object [
+        Input.PedalEvent pedal Input.Release -> object [
             "release" .= toYaml pedal
           ]
-        Input.EventExpr{} ->
-          error "unimplemented"
 
 instance ToJSON (YamlOutput Input.Pedal) where
   toJSON (YamlOutput pedal) = toJSON $ show pedal
@@ -154,9 +101,9 @@ newtype JsonOutput a = JsonOutput a
 instance ToJSON (JsonOutput Mealy.StateNum) where
   toJSON (JsonOutput state) = toJSON state
 
-instance ToJSON (JsonOutput Input.Event) where
+instance ToJSON (JsonOutput Input.PedalEvent) where
   toJSON (JsonOutput inputEvent) =
-      case MIDI.messageBody $ Input.toMIDI inputEvent of
+      case MIDI.messageBody $ Input.pedalEventToMIDI inputEvent of
         MIDI.MsgControl control ->
           toJSON [
               toJSON $ MIDI.controlNumber control
@@ -165,6 +112,6 @@ instance ToJSON (JsonOutput Input.Event) where
         _otherwise ->
           error "unexpected MIDI message"
 
-instance ToJSON (JsonOutput [Input.Event]) where
+instance ToJSON (JsonOutput [Input.PedalEvent]) where
   toJSON (JsonOutput outputEvents) = toJSON $
       map (toJSON . JsonOutput) outputEvents

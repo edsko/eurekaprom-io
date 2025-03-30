@@ -2,9 +2,9 @@
 --
 -- Intended for qualified import.
 --
--- > import Test.Mealy.SUT (SystemMonad, SystemPort)
--- > import Test.Mealy.SUT qualified as SUT
-module Test.Mealy.SUT (
+-- > import Test.Lockstep.SUT (SystemMonad, SystemPort)
+-- > import Test.Lockstep.SUT qualified as SUT
+module Test.Lockstep.SUT (
     -- * Monad
     SystemMonad
   , run
@@ -37,8 +37,6 @@ import EurekaPROM.IO.ALSA
 import EurekaPROM.IO.Input
 import EurekaPROM.IO.Simultaneous (simultaneous)
 import EurekaPROM.IO.Simultaneous qualified as Simultaneous
-
-import Test.Mealy.Model (PedalAction(..))
 
 {-------------------------------------------------------------------------------
   Monad
@@ -88,21 +86,21 @@ terminate SystemState{alsaHandle, deviceVar} = do
   Interaction
 -------------------------------------------------------------------------------}
 
-getEvents :: SystemMonad [Event]
+getEvents :: SystemMonad [PedalEvent]
 getEvents = ReaderT $ \SystemState{alsaHandle, deviceVar} ->
     modifyMVar deviceVar $ \deviceState -> do
-      input <- waitInput alsaHandle
+      input <- waitInputUsing pedalEventFromMIDI alsaHandle
       return $
         fromMaybe (deviceState, []) $
           Mealy.step simultaneous (deviceState, input)
 
-showInstruction :: MonadIO m => PedalAction -> m ()
+showInstruction :: MonadIO m => PedalEvent -> m ()
 showInstruction action = liftIO $ do
     case action of
-      ActPress pedal -> do
+      PedalEvent pedal Press -> do
         setSGR [SetColor Foreground Dull Green]
         putStrLn $ "Please press " ++ show pedal
-      ActRelease pedal -> do
+      PedalEvent pedal Release -> do
         setSGR [SetColor Foreground Dull Red]
         putStrLn $ "Please release " ++ show pedal
     setSGR [Reset]
@@ -115,7 +113,7 @@ delay = liftIO $ do
     void $ timeout waitTime $ getLine
   where
     waitTime :: Int
-    waitTime = 5_000_000
+    waitTime = 3_000_000
 
 {-------------------------------------------------------------------------------
   Command line arguments

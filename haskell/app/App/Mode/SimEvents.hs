@@ -28,12 +28,12 @@ run :: ALSA.Handle -> IO ()
 run h = Adaptor.run $ forever $ do
     ev <- liftIO $ waitInput h
     case ev of
-      Input.EventPedal pedal Input.Press ->
+      Input.EventPedal (Input.PedalEvent pedal Input.Press) ->
         Adaptor.writeInputEvents $ Map.findWithDefault [] pedal noteOnMap
-      Input.EventPedal _pedal Input.Release ->
+      Input.EventPedal (Input.PedalEvent _pedal Input.Release) ->
         -- Currently ignored
         return ()
-      Input.EventExpr Input.ExprA value -> do
+      Input.EventExpr (Input.ExprEvent Input.ExprA value) -> do
         mDelta <- Adaptor.deltaCC 102 value
         case mDelta of
           Nothing ->
@@ -43,7 +43,7 @@ run h = Adaptor.run $ forever $ do
             Adaptor.writeInputEvents [Adaptor.Rel (5, 0)]
           Just _ | otherwise ->
             Adaptor.writeInputEvents [Adaptor.Rel (-5, 0)]
-      Input.EventExpr Input.ExprB _value ->
+      Input.EventExpr (Input.ExprEvent Input.ExprB _value) ->
         -- Currently ignored
         return ()
   where
