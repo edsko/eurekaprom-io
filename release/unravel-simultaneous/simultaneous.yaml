@@ -1,3 +1,4 @@
+transitions:
 - from:
   - pedals: []
   - press: Pedal10

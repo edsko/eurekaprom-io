@@ -161,7 +161,9 @@ exec machine env =
 -------------------------------------------------------------------------------}
 
 instance (ToJSON s, ToJSON i, ToJSON o) => ToJSON (Mealy s i o) where
-  toJSON = toJSON . toTransitions
+  toJSON machine = object [
+        "transitions" .= toTransitions machine
+      ]
 
 instance (ToJSON s, ToJSON i, ToJSON o) => ToJSON (Transition s i o) where
   toJSON Transition{from, to} = object [
