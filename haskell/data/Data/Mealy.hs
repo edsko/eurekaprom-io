@@ -13,10 +13,9 @@ module Data.Mealy (
   , fromTransitions
   , toTransitions
     -- * Combinators
-  , wrap
   , mapState
+  , mapInputOutput
     -- * Encoding state
-  , StateNum(..)
   , encodeState
     -- * Execution
   , step
@@ -25,6 +24,8 @@ module Data.Mealy (
   ) where
 
 import Data.Aeson
+import Data.Aeson.Key qualified as Key
+import Data.Aeson.Types
 import Data.Bifunctor
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -37,7 +38,7 @@ import Data.Set qualified as Set
 
 -- | Mealy machine
 data Mealy s i o = Mealy {
-      transitions :: Map (s, i) (s, o)
+      transitions :: Map s (Map i (s, o))
     }
 
 {-------------------------------------------------------------------------------
@@ -52,35 +53,23 @@ data Transition s i o = Transition {
 fromTransitions :: forall s i o.
       (Ord s, Ord i)
    => [Transition s i o] -> Mealy s i o
-fromTransitions = Mealy . Map.fromList . map aux
+fromTransitions =
+    Mealy . Map.unionsWith Map.union . map singleton
   where
-    aux :: Transition s i o -> ((s, i), (s, o))
-    aux Transition{from, to} = (from, to)
+    singleton :: Transition s i o -> Map s (Map i (s, o))
+    singleton Transition{from = (s, i), to} =
+        Map.singleton s $ Map.singleton i to
 
 toTransitions :: forall s i o. Mealy s i o -> [Transition s i o]
-toTransitions = map aux . Map.toList . transitions
+toTransitions =
+    concatMap aux . map (second Map.toList) . Map.toList . transitions
   where
-    aux :: ((s, i), (s, o)) -> Transition s i o
-    aux (from, to) = Transition{from, to}
+    aux :: (s, [(i, (s, o))]) -> [Transition s i o]
+    aux (s, fromS) = [Transition{from = (s, i), to} | (i, to) <- fromS]
 
 {-------------------------------------------------------------------------------
   Combinators
 -------------------------------------------------------------------------------}
-
-wrap :: forall f s i o.
-     (Ord (f s), Ord (f i))
-  => (forall x. x -> f x)
-  -> Mealy s i o -> Mealy (f s) (f i) (f o)
-wrap f =
-      fromTransitions
-    . map aux
-    . toTransitions
-  where
-    aux :: Transition s i o -> Transition (f s) (f i) (f o)
-    aux Transition{from, to} = Transition{
-          from = bimap f f from
-        , to   = bimap f f to
-        }
 
 mapState :: forall s s' i o.
      (Ord s', Ord i)
@@ -97,16 +86,24 @@ mapState f =
         , to     = first f to
         }
 
+mapInputOutput :: forall f s i o.
+     (Ord s, Ord (f i))
+  => (forall x. x -> f x)
+  -> Mealy s i o -> Mealy s (f i) (f o)
+mapInputOutput f =
+      fromTransitions
+    . map aux
+    . toTransitions
+  where
+    aux :: Transition s i o -> Transition s (f i) (f o)
+    aux Transition{from, to} = Transition{
+          from = second f from
+        , to   = second f to
+        }
+
 {-------------------------------------------------------------------------------
   Encoding states
 -------------------------------------------------------------------------------}
-
--- | Numerical state
---
--- See 'encodeState'
-newtype StateNum = StateNum Int
-  deriving stock (Show, Eq, Ord)
-  deriving newtype (ToJSON)
 
 allStates :: Ord s => Mealy s i o -> Set s
 allStates = Set.fromList . concatMap aux . toTransitions
@@ -117,19 +114,22 @@ allStates = Set.fromList . concatMap aux . toTransitions
 -- | Assign unique 'Int' to every state
 encodeState :: forall s i o.
      (Ord s, Ord i)
-  => Mealy s i o -> Mealy StateNum i o
+  => Mealy s i o -> Mealy Key i o
 encodeState machine =
-    mapState (\s -> StateNum $ states Map.! s) machine
+    mapState (\s -> toKey $ states Map.! s) machine
   where
     states :: Map s Int
     states = Map.fromList $ zip (Set.toList $ allStates machine) [0..]
+
+    toKey :: Int -> Key
+    toKey = Key.fromString . show
 
 {-------------------------------------------------------------------------------
   Execution
 -------------------------------------------------------------------------------}
 
 step :: (Ord i, Ord s) => Mealy s i o -> (s, i) -> Maybe (s, o)
-step machine (s, i) = Map.lookup (s, i) (transitions machine)
+step machine (s, i) = Map.lookup s (transitions machine) >>= Map.lookup i
 
 -- | Execution environment for Mealy machine
 data ExecEnv m s i o = ExecEnv {
@@ -160,13 +160,8 @@ exec machine env =
   JSON
 -------------------------------------------------------------------------------}
 
-instance (ToJSON s, ToJSON i, ToJSON o) => ToJSON (Mealy s i o) where
-  toJSON machine = object [
-        "transitions" .= toTransitions machine
-      ]
-
-instance (ToJSON s, ToJSON i, ToJSON o) => ToJSON (Transition s i o) where
-  toJSON Transition{from, to} = object [
-        "from" .= from
-      , "to"   .= to
-      ]
+instance (ToJSON i, ToJSON o) => ToJSON (Mealy Key i o) where
+  toJSON Mealy{transitions} = object $ map aux (Map.toList transitions)
+    where
+      aux :: (Key, Map i (Key, o)) -> Pair
+      aux (s, fromS) = s .= Map.toList fromS

@@ -2,8 +2,9 @@
 
 module App.Mode.GenMealy (Cmd(..), run) where
 
-import Data.Aeson (ToJSON(..), object, (.=))
+import Data.Aeson (ToJSON(..), Key, object, (.=))
 import Data.Aeson qualified as Aeson
+import Data.Aeson.Key qualified as Key
 import Data.Yaml qualified as Yaml
 
 import Control.ALSA.Handle qualified as ALSA (Handle)
@@ -38,10 +39,12 @@ run mode =
           }
       Yaml fp ->
         Yaml.encodeFile fp $
-          Mealy.wrap YamlOutput machine
+          Mealy.mapState showState . Mealy.mapInputOutput YamlOutput $
+            machine
       Json fp ->
         Aeson.encodeFile fp $
-          Mealy.wrap JsonOutput $ Mealy.encodeState machine
+          Mealy.encodeState . Mealy.mapInputOutput JsonOutput $
+            machine
   where
     machine :: Simultaneous.MealyMachine
     machine = simultaneous
@@ -54,27 +57,17 @@ run mode =
   Configure YAML output
 -------------------------------------------------------------------------------}
 
-toYaml :: ToJSON (YamlOutput a) => a -> Yaml.Value
-toYaml = toJSON . YamlOutput
+showState :: Simultaneous.DeviceState -> Key
+showState = Key.fromString . show
 
 newtype YamlOutput a = YamlOutput a
   deriving stock (Eq, Ord)
 
+toYaml :: ToJSON (YamlOutput a) => a -> Yaml.Value
+toYaml = toJSON . YamlOutput
+
 instance ToJSON (YamlOutput a) => ToJSON (YamlOutput [a]) where
   toJSON (YamlOutput xs) = toJSON (map toYaml xs)
-
-instance ToJSON (YamlOutput Simultaneous.DeviceState) where
-  toJSON (YamlOutput state) =
-      case state of
-        Simultaneous.StateNoPedals -> object [
-            "pedals" .= toYaml ([] :: [Input.Pedal])
-          ]
-        Simultaneous.StateOnePedal pedal -> object [
-            "pedals" .= toYaml [pedal]
-          ]
-        Simultaneous.StateTwoPedals pedal1 pedal2 -> object [
-            "pedals" .= toYaml [pedal1, pedal2]
-          ]
 
 instance ToJSON (YamlOutput Input.PedalEvent) where
   toJSON (YamlOutput inputEvent) =
@@ -98,8 +91,8 @@ instance ToJSON (YamlOutput Input.Pedal) where
 newtype JsonOutput a = JsonOutput a
   deriving stock (Eq, Ord)
 
-instance ToJSON (JsonOutput Mealy.StateNum) where
-  toJSON (JsonOutput state) = toJSON state
+instance ToJSON (JsonOutput a) => ToJSON (JsonOutput [a]) where
+  toJSON (JsonOutput xs) = toJSON $ map (toJSON . JsonOutput) xs
 
 instance ToJSON (JsonOutput Input.PedalEvent) where
   toJSON (JsonOutput inputEvent) =
@@ -111,7 +104,3 @@ instance ToJSON (JsonOutput Input.PedalEvent) where
             ]
         _otherwise ->
           error "unexpected MIDI message"
-
-instance ToJSON (JsonOutput [Input.PedalEvent]) where
-  toJSON (JsonOutput outputEvents) = toJSON $
-      map (toJSON . JsonOutput) outputEvents
