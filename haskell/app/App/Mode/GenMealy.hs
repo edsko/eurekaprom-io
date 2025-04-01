@@ -27,7 +27,7 @@ import EurekaPROM.IO.Simultaneous qualified as Simultaneous
 data Cmd a =
     Exec a
   | Yaml FilePath
-  | Json FilePath
+  | Json FilePath FilePath
   deriving stock (Show)
 
 run :: Cmd ALSA.Handle -> IO ()
@@ -42,9 +42,15 @@ run mode =
           , finalState    = const False
           }
       Yaml fp ->
-        Yaml.encodeFile fp . YamlOutput $ machine
-      Json fp ->
-        Aeson.encodeFile fp . JsonOutput $ Mealy.encodeState machine
+        Yaml.encodeFile fp $ YamlOutput machine
+      Json fpNext fpOutputs -> do
+        let dict1 :: MealyRules Int Input.PedalEvent Int
+            dict2 :: MealyRules Int Input.PedalEvent [Input.PedalEvent]
+            (dict1, dict2) =
+                let encoded = transitions $ Mealy.encodeState machine
+                in (nextStates encoded, outputs encoded)
+        Aeson.encodeFile fpNext    $ JsonOutput dict1
+        Aeson.encodeFile fpOutputs $ JsonOutput dict2
   where
     machine :: Simultaneous.MealyMachine
     machine = simultaneous
@@ -53,12 +59,44 @@ run mode =
     warnUnrecognized s i =
         putStrLn $ "No transition for " ++ show i ++ " in state " ++ show s
 
+{-------------------------------------------------------------------------------
+  Auxiliary: split Mealy machine into separate dictionaries
+-------------------------------------------------------------------------------}
 
-{-
+type MealyRules s i to = Map s (Map i to)
+
+transitions :: Mealy s i o -> MealyRules s i (s, o)
+transitions = Mealy.transitions
+
+nextStates :: MealyRules s i (s, o) -> MealyRules s i s
+nextStates = fmap (fmap fst)
+
+outputs :: MealyRules s i (s, o) -> MealyRules s i o
+outputs = fmap (fmap snd)
+
+pedalEventCcNumVal :: Input.PedalEvent -> (Int, Int)
+pedalEventCcNumVal event =
+    case MIDI.messageBody $ Input.pedalEventToMIDI event of
+      MIDI.MsgControl control -> (
+          MIDI.controlNumber control
+        , MIDI.controlValue  control
+        )
+      _otherwise ->
+        error "unexpected MIDI message"
+
+byCC :: forall a. Map Input.PedalEvent a -> Map Int (Map Int a)
+byCC =
+      Map.unionsWith Map.union
+    . map singleton
+    . map (first pedalEventCcNumVal)
+    . Map.toList
+  where
+    singleton :: ((Int, Int), a) -> Map Int (Map Int a)
+    singleton ((num, val), a) = Map.singleton num $ Map.singleton val a
+
 {-------------------------------------------------------------------------------
   Configure YAML output
 -------------------------------------------------------------------------------}
--}
 
 newtype YamlOutput a = YamlOutput a
   deriving stock (Eq, Ord)
@@ -122,43 +160,24 @@ newtype JsonOutput a = JsonOutput a
 json :: ToJSON (JsonOutput a) => a -> Yaml.Value
 json = toJSON . JsonOutput
 
+instance ToJSON (JsonOutput Int) where
+  toJSON (JsonOutput x) = toJSON x
+
 instance ToJSON (JsonOutput a) => ToJSON (JsonOutput [a]) where
   toJSON (JsonOutput xs) = toJSON (map json xs)
 
-instance ToJSON (JsonOutput (Mealy Int Input.PedalEvent [Input.PedalEvent])) where
-  toJSON (JsonOutput machine) = object [
+instance ToJSON (JsonOutput to)
+      => ToJSON (JsonOutput (MealyRules Int Input.PedalEvent to)) where
+  toJSON (JsonOutput rules) = object [
         Key.fromString (show s) .= object [
             Key.fromString (show ccNum) .= object [
-                Key.fromString (show ccVal) .= object [
-                    "state"  .= toState
-                  , "output" .= json output
-                  ]
-              | (ccVal, (toState, output)) <- Map.toList fromCcNum
+                Key.fromString (show ccVal) .= json to
+              | (ccVal, to) <- Map.toList fromCcNum
               ]
           | (ccNum, fromCcNum) <- Map.toList $ byCC fromS
           ]
-      | (s, fromS) <- Map.toList $ Mealy.transitions machine
+      | (s, fromS) <- Map.toList rules
       ]
 
 instance ToJSON (JsonOutput Input.PedalEvent) where
   toJSON (JsonOutput inputEvent) = toJSON $ pedalEventCcNumVal inputEvent
-
-pedalEventCcNumVal :: Input.PedalEvent -> (Int, Int)
-pedalEventCcNumVal event =
-    case MIDI.messageBody $ Input.pedalEventToMIDI event of
-      MIDI.MsgControl control -> (
-          MIDI.controlNumber control
-        , MIDI.controlValue  control
-        )
-      _otherwise ->
-        error "unexpected MIDI message"
-
-byCC :: forall a. Map Input.PedalEvent a -> Map Int (Map Int a)
-byCC =
-      Map.unionsWith Map.union
-    . map singleton
-    . map (first pedalEventCcNumVal)
-    . Map.toList
-  where
-    singleton :: ((Int, Int), a) -> Map Int (Map Int a)
-    singleton ((num, val), a) = Map.singleton num $ Map.singleton val a

@@ -71,10 +71,15 @@ parseGenMeadyCmd = asum [
           long "yaml"
         , help "Export to human-readable .yaml format"
         ])
-    , Mode.GenMealy.Json <$> strOption (mconcat [
-          long "json"
-        , help "Export to machine-readable .json format"
-        ])
+    , Mode.GenMealy.Json
+        <$> strOption (mconcat [
+                long "json-next"
+              , help "Export next states to machine-readable .json format"
+              ])
+        <*> strOption (mconcat [
+                long "json-outputs"
+              , help "Export outputs to machine-readable .json format"
+              ])
     ]
 
 {-------------------------------------------------------------------------------

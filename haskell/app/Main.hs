@@ -48,5 +48,5 @@ initGenMealy (Mode.GenMealy.Exec portSpec) k =
       k $ Mode.GenMealy.Exec h
 initGenMealy (Mode.GenMealy.Yaml fp) k =
     k $ Mode.GenMealy.Yaml fp
-initGenMealy (Mode.GenMealy.Json fp) k =
-    k $ Mode.GenMealy.Json fp
+initGenMealy (Mode.GenMealy.Json fpNext fpOutputs) k =
+    k $ Mode.GenMealy.Json fpNext fpOutputs
