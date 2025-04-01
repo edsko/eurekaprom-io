@@ -8,13 +8,13 @@
 -- > import Data.Mealy qualified as Mealy
 module Data.Mealy (
     Mealy -- opaque
+  , transitions
     -- * Transitions
   , Transition(..)
   , fromTransitions
   , toTransitions
     -- * Combinators
   , mapState
-  , mapInputOutput
     -- * Encoding state
   , encodeState
     -- * Execution
@@ -23,9 +23,6 @@ module Data.Mealy (
   , exec
   ) where
 
-import Data.Aeson
-import Data.Aeson.Key qualified as Key
-import Data.Aeson.Types
 import Data.Bifunctor
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -86,21 +83,6 @@ mapState f =
         , to     = first f to
         }
 
-mapInputOutput :: forall f s i o.
-     (Ord s, Ord (f i))
-  => (forall x. x -> f x)
-  -> Mealy s i o -> Mealy s (f i) (f o)
-mapInputOutput f =
-      fromTransitions
-    . map aux
-    . toTransitions
-  where
-    aux :: Transition s i o -> Transition s (f i) (f o)
-    aux Transition{from, to} = Transition{
-          from = second f from
-        , to   = second f to
-        }
-
 {-------------------------------------------------------------------------------
   Encoding states
 -------------------------------------------------------------------------------}
@@ -114,15 +96,12 @@ allStates = Set.fromList . concatMap aux . toTransitions
 -- | Assign unique 'Int' to every state
 encodeState :: forall s i o.
      (Ord s, Ord i)
-  => Mealy s i o -> Mealy Key i o
+  => Mealy s i o -> Mealy Int i o
 encodeState machine =
-    mapState (\s -> toKey $ states Map.! s) machine
+    mapState (\s -> states Map.! s) machine
   where
     states :: Map s Int
     states = Map.fromList $ zip (Set.toList $ allStates machine) [0..]
-
-    toKey :: Int -> Key
-    toKey = Key.fromString . show
 
 {-------------------------------------------------------------------------------
   Execution
@@ -155,13 +134,3 @@ exec machine env =
           case step machine (s, i) of
             Nothing      -> unrecognized env s i >> go s
             Just (s', o) -> processOutput env o  >> go s'
-
-{-------------------------------------------------------------------------------
-  JSON
--------------------------------------------------------------------------------}
-
-instance (ToJSON i, ToJSON o) => ToJSON (Mealy Key i o) where
-  toJSON Mealy{transitions} = object $ map aux (Map.toList transitions)
-    where
-      aux :: (Key, Map i (Key, o)) -> Pair
-      aux (s, fromS) = s .= Map.toList fromS

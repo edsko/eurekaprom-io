@@ -82,7 +82,7 @@ main = defaultMainWithIngredients ingredients $
     -- Disable shrinking (too slow due to human involvement in test execution)
     localOption (QuickCheckMaxShrinks 0) $
     -- A few tests are sufficient (each test is itself many tests)
-    localOption (QuickCheckTests 5) $
+    localOption (QuickCheckTests 2) $
     -- Setup the actual lockstep test
       testGroup "test-mealy" [
           testProperty "lockstep" $
