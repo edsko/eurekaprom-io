@@ -8,5 +8,13 @@ signals from the [FCB1010](https://www.behringer.com/product.html?modelCode=0715
 using the [EurekaPROM](https://www.eurekasound.com/eurekaprom) chip in
 [IO mode](https://www.eurekasound.com/eurekaprom/io).
 
-Currently it only interprets pedal 1 as a sustain pedal.
+Currently it only interprets
 
+* Pedal 1 as a sustain pedal
+* Expression pedal A (left) as CC1
+* Expression pedal B (right) as CC11
+
+> [!WARNING]
+> For some reason the sustain pedal does not seem to work well during recording
+> (only the first time the sustain pedal is used is recorded). I am currently
+> unsure why (some kind of CC debouncing?).
