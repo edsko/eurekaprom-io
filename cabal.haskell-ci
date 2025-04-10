@@ -1,0 +1,2 @@
+branches: main
+apt: libasound2-dev libevdev-dev

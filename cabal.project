@@ -1,4 +1,4 @@
-packages: .
+packages: haskell
 
 package eurekaprom-io
   tests: True
