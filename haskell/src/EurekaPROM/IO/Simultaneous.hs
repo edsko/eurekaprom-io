@@ -9,6 +9,8 @@ module EurekaPROM.IO.Simultaneous (
   , DeviceState(..)
   , initDeviceState
   , simultaneous
+    -- * Re-exports
+  , Mealy.step
   ) where
 
 import Data.Mealy (Mealy)
