@@ -2,8 +2,15 @@
 --
 -- Intended for unqualified import.
 module EurekaPROM.IO.ALSA (
+    -- * Initialization
+    ALSA.Handle
+  , ALSA.PortSpec(..)
+  , ALSA.getPortNames
+  , ALSA.resolve
+  , Handle.open
+  , Handle.close
     -- * Input
-    waitInput
+  , waitInput
   , waitInputUsing
   , dropInput
     -- * Output
@@ -15,7 +22,7 @@ module EurekaPROM.IO.ALSA (
 import Control.Monad
 import Control.Exception
 
-import Control.ALSA qualified as ALSA ()
+import Control.ALSA qualified as ALSA
 import Control.ALSA.Event qualified as ALSA.Event
 import Control.ALSA.Handle qualified as ALSA (Handle)
 import Control.ALSA.Handle qualified as Handle

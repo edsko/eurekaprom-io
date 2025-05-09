@@ -6,11 +6,10 @@
 module Control.ALSA (
     -- Resolution
     PortSpec(..)
+  , getPortNames
   , listPorts
   , resolve
   ) where
-
-import Control.Monad
 
 import "alsa-seq" Sound.ALSA.Sequencer.Subscribe qualified as Subscribe
 
@@ -43,11 +42,13 @@ data PortSpec =
   | PortOutputOnly PortName
   deriving stock (Show)
 
+getPortNames :: ALSA.Handle -> IO [String]
+getPortNames h = map Discovery.portQualifiedName <$> Discovery.getAllPorts h
+
 listPorts :: ALSA.Handle -> IO ()
 listPorts h = do
-    ports <- Discovery.getAllPorts h
-    forM_ ports $ \port ->
-      putStrLn $ Discovery.portQualifiedName port
+    portNames <- getPortNames h
+    mapM_ putStrLn portNames
 
 resolve :: ALSA.Handle -> PortSpec -> IO ()
 resolve _ (PortDuplex _) =
